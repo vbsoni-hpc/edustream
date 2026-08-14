@@ -27,6 +27,7 @@ def _get_secret(key: str, default: str = "") -> str:
 TELEGRAM_API_ID = int(_get_secret("TELEGRAM_API_ID", "0"))
 TELEGRAM_API_HASH = _get_secret("TELEGRAM_API_HASH")
 TELEGRAM_CHANNEL = _get_secret("TELEGRAM_CHANNEL")
+TELEGRAM_STRING_SESSION = _get_secret("TELEGRAM_STRING_SESSION")
 
 # ── Auth ──────────────────────────────────────────────────
 JWT_SECRET = _get_secret("JWT_SECRET", "default-insecure-change-me")

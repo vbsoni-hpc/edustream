@@ -9,6 +9,7 @@ import logging
 from typing import AsyncIterator, Optional
 
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 from telethon.tl.types import (
     DocumentAttributeFilename,
     DocumentAttributeVideo,
@@ -23,6 +24,7 @@ from config import (
     TELEGRAM_API_HASH,
     TELEGRAM_CHANNEL,
     SESSION_NAME,
+    TELEGRAM_STRING_SESSION,
     DEFAULT_SEGMENT_ICONS,
 )
 
@@ -36,7 +38,8 @@ async def get_client() -> TelegramClient:
     """Get or create the Telethon client. Connects if not already connected."""
     global _client
     if _client is None:
-        _client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+        session = StringSession(TELEGRAM_STRING_SESSION) if TELEGRAM_STRING_SESSION else SESSION_NAME
+        _client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
     if not _client.is_connected():
         await _client.start()
     return _client
