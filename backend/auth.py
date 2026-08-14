@@ -16,13 +16,13 @@ from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_DAYS
 
 
 def hash_password(password: str) -> str:
-    pwd_bytes = password.encode("utf-8")
+    pwd_bytes = password.encode("utf-8")[:72]  # bcrypt has a 72-byte limit
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    return bcrypt.checkpw(plain.encode("utf-8")[:72], hashed.encode("utf-8"))
 
 
 # ── JWT tokens ────────────────────────────────────────────
