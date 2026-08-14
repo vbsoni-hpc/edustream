@@ -1,0 +1,9 @@
+streamlit>=1.35
+fastapi>=0.111
+uvicorn[standard]>=0.30
+telethon>=1.36
+python-dotenv>=1.0
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+plotly>=5.22
+aiosqlite>=0.20
