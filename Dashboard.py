@@ -362,8 +362,8 @@ def show_home():
         st.caption(f"@{st.session_state['username']}")
         st.divider()
         
-        # Online users widget
-        online_users = get_online_users(minutes=5)
+        # Online users widget (5 second threshold)
+        online_users = get_online_users(minutes=1/12)
         st.markdown("**🟢 Online Now**")
         if online_users:
             html = "<div>"
