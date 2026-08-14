@@ -7,6 +7,7 @@ import asyncio
 import re
 import logging
 from typing import AsyncIterator, Optional
+from functools import lru_cache
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -46,7 +47,6 @@ async def get_client() -> TelegramClient:
 
 
 async def disconnect():
-    """Gracefully disconnect the client."""
     global _client
     if _client and _client.is_connected():
         await _client.disconnect()
@@ -99,7 +99,7 @@ async def sync_channel(channel: str = None) -> list[dict]:
     videos = []
     logger.info(f"Syncing channel: {channel}")
 
-    async for message in client.iter_messages(channel):
+    async for message in client.iter_messages(channel, limit=None):
         if not message.media or not isinstance(message.media, MessageMediaDocument):
             continue
 
@@ -142,14 +142,32 @@ async def sync_channel(channel: str = None) -> list[dict]:
     return videos
 
 
-# ── Video streaming ───────────────────────────────────────
+# ── Video streaming (OPTIMIZED) ──────────────────────────
+
+# In-memory cache for message objects to avoid repeated Telegram API calls.
+# key: msg_id → value: message object
+_message_cache: dict[int, object] = {}
+_CACHE_MAX = 200  # Max cached messages
+
 
 async def get_message_media(msg_id: int, channel: str = None):
-    """Fetch a specific message by ID to get its media for streaming."""
+    """
+    Fetch a specific message by ID, with in-memory caching.
+    Avoids hitting the Telegram API on every range request.
+    """
+    if msg_id in _message_cache:
+        return _message_cache[msg_id]
+
     client = await get_client()
     channel = channel or TELEGRAM_CHANNEL
     message = await client.get_messages(channel, ids=msg_id)
+
     if message and message.media:
+        # Evict oldest if cache is full
+        if len(_message_cache) >= _CACHE_MAX:
+            oldest = next(iter(_message_cache))
+            del _message_cache[oldest]
+        _message_cache[msg_id] = message
         return message
     return None
 
@@ -157,7 +175,7 @@ async def get_message_media(msg_id: int, channel: str = None):
 async def stream_video_chunks(
     msg_id: int,
     offset: int = 0,
-    chunk_size: int = 1024 * 1024,  # 1 MB chunks
+    chunk_size: int = 512 * 1024,  # 512 KB chunks for faster first-byte
     limit: int = 0,
     channel: str = None,
 ) -> AsyncIterator[bytes]:
@@ -178,6 +196,7 @@ async def stream_video_chunks(
         message.media,
         offset=offset,
         chunk_size=chunk_size,
+        request_size=chunk_size,  # Match request_size to chunk_size
     ):
         if limit > 0:
             remaining = limit - sent
@@ -193,8 +212,16 @@ async def stream_video_chunks(
 
 
 async def get_file_size(msg_id: int, channel: str = None) -> int:
-    """Get the file size of a video message."""
+    """Get the file size of a video message (uses cache)."""
     message = await get_message_media(msg_id, channel)
     if message and message.media and message.media.document:
         return message.media.document.size
     return 0
+
+
+def get_cached_file_size(msg_id: int) -> Optional[int]:
+    """Get file size from cache without hitting Telegram API."""
+    msg = _message_cache.get(msg_id)
+    if msg and msg.media and msg.media.document:
+        return msg.media.document.size
+    return None

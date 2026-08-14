@@ -153,13 +153,21 @@ def _parse_range(range_header: Optional[str], file_size: int) -> tuple[int, int]
 async def stream_video(msg_id: int, request: Request):
     """
     Stream video from Telegram with HTTP Range request support.
-    The browser's video player sends Range headers for seeking.
+    Uses DB-stored file_size to avoid an extra Telegram API call.
     """
-    try:
-        file_size = await get_file_size(msg_id)
-    except Exception as e:
-        logger.error(f"Failed to get file size for msg {msg_id}: {e}")
-        raise HTTPException(404, f"Video not found: {e}")
+    # FAST PATH: get file_size from our database (no Telegram API call needed)
+    file_size = 0
+    video_record = await async_get_video_by_msg_id(msg_id)
+    if video_record and video_record.get("file_size"):
+        file_size = video_record["file_size"]
+    
+    # Fallback: only hit Telegram API if DB doesn't have the size
+    if file_size == 0:
+        try:
+            file_size = await get_file_size(msg_id)
+        except Exception as e:
+            logger.error(f"Failed to get file size for msg {msg_id}: {e}")
+            raise HTTPException(404, f"Video not found: {e}")
     
     if file_size == 0:
         raise HTTPException(404, "Video not found or has zero size")
@@ -168,7 +176,7 @@ async def stream_video(msg_id: int, request: Request):
     start, end = _parse_range(range_header, file_size)
     content_length = end - start + 1
 
-    # Cap chunk to avoid huge single responses (max 2MB per range response for faster buffering)
+    # Cap chunk to avoid huge single responses (max 2MB per range response)
     max_chunk = 2 * 1024 * 1024
     if content_length > max_chunk and range_header:
         end = start + max_chunk - 1
@@ -191,7 +199,7 @@ async def stream_video(msg_id: int, request: Request):
         "Accept-Ranges": "bytes",
         "Content-Length": str(content_length),
         "Content-Range": f"bytes {start}-{end}/{file_size}",
-        "Cache-Control": "no-cache",
+        "Cache-Control": "public, max-age=3600",  # Browser can cache chunks for 1 hour
     }
 
     return StreamingResponse(

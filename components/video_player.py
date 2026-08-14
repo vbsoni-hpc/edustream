@@ -153,7 +153,7 @@ def render_video_player(
                 id="edtech-player"
                 class="video-js vjs-big-play-centered vjs-theme-fantasy"
                 controls
-                preload="auto"
+                preload="metadata"
                 data-setup='{{}}'
             >
                 <source src="{api_base}/api/stream/{video_msg_id}" type="video/mp4" />
