@@ -7,3 +7,4 @@ python-jose[cryptography]>=3.3
 passlib[bcrypt]>=1.7
 plotly>=5.22
 aiosqlite>=0.20
+

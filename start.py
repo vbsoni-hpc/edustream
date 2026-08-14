@@ -1,5 +1,5 @@
 """
-EduStream Launcher — Starts both FastAPI and Streamlit servers.
+EduStream Launcher - Starts both FastAPI and Streamlit servers.
 
 Usage:
     python start.py
@@ -10,9 +10,13 @@ This will start:
 """
 import subprocess
 import sys
-import signal
 import time
 import os
+import io
+
+# Fix Windows console encoding for emojis
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Ensure we're running from the project root
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,15 +26,15 @@ os.chdir(PROJECT_DIR)
 def main():
     print()
     print("=" * 60)
-    print("  🎓 EduStream — Course Platform Launcher")
+    print("  EduStream - Course Platform Launcher")
     print("=" * 60)
     print()
 
     processes = []
 
     try:
-        # ── Start FastAPI ──
-        print("🚀 Starting FastAPI backend on http://127.0.0.1:8000 ...")
+        # -- Start FastAPI --
+        print("[*] Starting FastAPI backend on http://127.0.0.1:8000 ...")
         fastapi_cmd = [
             sys.executable, "-m", "uvicorn",
             "backend.server:app",
@@ -50,9 +54,9 @@ def main():
         # Give FastAPI a moment to start
         time.sleep(2)
 
-        # ── Start Streamlit ──
+        # -- Start Streamlit --
         print()
-        print("🌐 Starting Streamlit UI on http://localhost:8501 ...")
+        print("[*] Starting Streamlit UI on http://localhost:8501 ...")
         print()
         streamlit_cmd = [
             sys.executable, "-m", "streamlit", "run",
@@ -71,10 +75,10 @@ def main():
 
         print()
         print("-" * 60)
-        print("  ✅ Both servers are running!")
+        print("  Both servers are running!")
         print()
-        print("  📺 Open in browser: http://localhost:8501")
-        print("  📡 API docs:        http://127.0.0.1:8000/docs")
+        print("  Open in browser: http://localhost:8501")
+        print("  API docs:        http://127.0.0.1:8000/docs")
         print()
         print("  Press Ctrl+C to stop both servers.")
         print("-" * 60)
@@ -85,12 +89,12 @@ def main():
             for proc in processes:
                 retcode = proc.poll()
                 if retcode is not None:
-                    print(f"\n⚠️ A process exited with code {retcode}. Shutting down...")
+                    print(f"\n[!] A process exited with code {retcode}. Shutting down...")
                     raise KeyboardInterrupt
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n\n🛑 Shutting down...")
+        print("\n\n[*] Shutting down...")
         for proc in processes:
             try:
                 proc.terminate()
@@ -104,7 +108,7 @@ def main():
             except subprocess.TimeoutExpired:
                 proc.kill()
 
-        print("✅ All servers stopped. Goodbye!")
+        print("[*] All servers stopped. Goodbye!")
         sys.exit(0)
 
 
