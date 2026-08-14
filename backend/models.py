@@ -202,6 +202,22 @@ def get_group_messages(limit: int = 50) -> list[dict]:
         """, (limit,)).fetchall()
         return [dict(r) for r in rows]
 
+def get_max_group_message_id() -> int:
+    with _conn() as c:
+        row = c.execute("SELECT MAX(id) as max_id FROM messages WHERE recipient_id = 0").fetchone()
+        return row["max_id"] or 0
+
+def get_new_group_messages_since(last_id: int) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT m.*, u.display_name as sender_name
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.recipient_id = 0 AND m.id > ?
+            ORDER BY m.created_at ASC
+        """, (last_id,)).fetchall()
+        return [dict(r) for r in rows]
+
 def mark_messages_read(message_ids: list[int]):
     if not message_ids:
         return
