@@ -168,8 +168,8 @@ async def stream_video(msg_id: int, request: Request):
     start, end = _parse_range(range_header, file_size)
     content_length = end - start + 1
 
-    # Cap chunk to avoid huge single responses (max 5MB per range response)
-    max_chunk = 5 * 1024 * 1024
+    # Cap chunk to avoid huge single responses (max 2MB per range response for faster buffering)
+    max_chunk = 2 * 1024 * 1024
     if content_length > max_chunk and range_header:
         end = start + max_chunk - 1
         content_length = max_chunk
