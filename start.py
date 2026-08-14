@@ -40,7 +40,6 @@ def main():
             "backend.server:app",
             "--host", "127.0.0.1",
             "--port", "8000",
-            "--reload",
             "--log-level", "info",
         ]
         fastapi_proc = subprocess.Popen(
