@@ -16,9 +16,11 @@ from backend.models import (
     init_db,
     get_user_by_username,
     create_user,
-    get_all_segments,
     get_dashboard_stats,
     get_segment_stats,
+    ping_user,
+    get_online_users,
+    get_leaderboard,
 )
 from backend.auth import hash_password, verify_password, create_access_token
 # ── Initialise DB on first run ────────────────────────────
@@ -207,6 +209,67 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background: rgba(108, 99, 255, 0.2);
     }
+    
+    /* Online indicator */
+    .online-badge {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        color: #10B981;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    .online-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #10B981;
+        border-radius: 50%;
+        margin-right: 6px;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    
+    /* Leaderboard */
+    .leaderboard-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .leaderboard-row:last-child {
+        border-bottom: none;
+    }
+    .lb-rank {
+        width: 32px;
+        font-weight: 700;
+        color: #9CA3AF;
+    }
+    .lb-rank.gold { color: #FBBF24; font-size: 18px; }
+    .lb-rank.silver { color: #9CA3AF; font-size: 18px; }
+    .lb-rank.bronze { color: #B45309; font-size: 18px; }
+    .lb-name {
+        flex-grow: 1;
+        font-weight: 600;
+        color: #FAFAFA;
+    }
+    .lb-score {
+        font-family: monospace;
+        color: #a78bfa;
+        font-weight: 600;
+        background: rgba(108, 99, 255, 0.1);
+        padding: 4px 10px;
+        border-radius: 6px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -297,6 +360,20 @@ def show_home():
     with st.sidebar:
         st.markdown(f"### 👤 {display_name}")
         st.caption(f"@{st.session_state['username']}")
+        st.divider()
+        
+        # Online users widget
+        online_users = get_online_users(minutes=5)
+        st.markdown("**🟢 Online Now**")
+        if online_users:
+            html = "<div>"
+            for u in online_users:
+                html += f'<div class="online-badge"><div class="online-dot"></div>{u["display_name"]}</div>'
+            html += "</div>"
+            st.markdown(html, unsafe_allow_html=True)
+        else:
+            st.caption("No one is online right now.")
+            
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
             logout()
@@ -394,12 +471,49 @@ def show_home():
                 </div>
                 """, unsafe_allow_html=True)
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Leaderboards ──
+    st.markdown("### 🏆 Top Learners")
+    lb_col1, lb_col2 = st.columns(2)
+    
+    def render_leaderboard(data, title):
+        html = f'<div class="glass-card"><h4 style="margin-top:0; color:#FAFAFA;">{title}</h4>'
+        if not data:
+            html += '<p style="color:#9CA3AF; font-size:14px;">No activity yet.</p></div>'
+            st.markdown(html, unsafe_allow_html=True)
+            return
+            
+        for i, row in enumerate(data):
+            rank_class = "gold" if i == 0 else "silver" if i == 1 else "bronze" if i == 2 else ""
+            rank_text = ["🥇", "🥈", "🥉"][i] if i < 3 else f"#{i+1}"
+            hrs = row['total_watch_sec'] / 3600
+            
+            html += f"""
+            <div class="leaderboard-row">
+                <div class="lb-rank {rank_class}">{rank_text}</div>
+                <div class="lb-name">{row['display_name']}</div>
+                <div class="lb-score">{hrs:.1f}h</div>
+            </div>
+            """
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
+
+    with lb_col1:
+        daily_lb = get_leaderboard(days=1)
+        render_leaderboard(daily_lb, "Daily Watch Hours")
+        
+    with lb_col2:
+        weekly_lb = get_leaderboard(days=7)
+        render_leaderboard(weekly_lb, "Weekly Watch Hours")
+
 
 # ═══════════════════════════════════════════════════════════
 #  Main
 # ═══════════════════════════════════════════════════════════
 
 if is_logged_in():
+    ping_user(st.session_state["user_id"])
     show_home()
 else:
     show_auth_page()

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
     username        TEXT    UNIQUE NOT NULL,
     password_hash   TEXT    NOT NULL,
     display_name    TEXT    NOT NULL DEFAULT '',
-    created_at      REAL    NOT NULL DEFAULT (strftime('%s','now'))
+    created_at      REAL    NOT NULL DEFAULT (strftime('%s','now')),
+    last_active     REAL    NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS progress (
 # Migration: add module_id to existing videos table if missing
 _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
+    "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0"
 ]
 
 
@@ -442,6 +444,42 @@ def get_daily_watch_activity(user_id: int, days: int = 30) -> list[dict]:
             GROUP BY date(last_watched_at, 'unixepoch')
             ORDER BY date
         """, (user_id, cutoff)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def ping_user(user_id: int):
+    """Update the user's last_active timestamp."""
+    with _conn() as c:
+        c.execute("UPDATE users SET last_active = ? WHERE id = ?", (time.time(), user_id))
+        c.commit()
+
+def get_online_users(minutes: int = 5) -> list[dict]:
+    """Get users who have been active within the last N minutes."""
+    with _conn() as c:
+        cutoff = time.time() - (minutes * 60)
+        rows = c.execute(
+            "SELECT username, display_name FROM users WHERE last_active >= ? ORDER BY last_active DESC",
+            (cutoff,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+def get_leaderboard(days: int = 1) -> list[dict]:
+    """Get leaderboard of watch time over the last N days."""
+    with _conn() as c:
+        cutoff = time.time() - (days * 86400)
+        # Note: we use last_watched_at as the time filter.
+        rows = c.execute("""
+            SELECT 
+                u.username, u.display_name, 
+                COALESCE(SUM(p.watch_seconds), 0) as total_watch_sec
+            FROM users u
+            JOIN progress p ON u.id = p.user_id
+            WHERE p.last_watched_at >= ?
+            GROUP BY u.id
+            HAVING total_watch_sec > 0
+            ORDER BY total_watch_sec DESC
+            LIMIT 10
+        """, (cutoff,)).fetchall()
         return [dict(r) for r in rows]
 
 
