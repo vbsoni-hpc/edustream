@@ -42,7 +42,14 @@ async def get_client() -> TelegramClient:
         session = StringSession(TELEGRAM_STRING_SESSION) if TELEGRAM_STRING_SESSION else SESSION_NAME
         _client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
     if not _client.is_connected():
-        await _client.start()
+        try:
+            await _client.start()
+        except Exception as e:
+            logger.warning(f"Telegram client start failed, retrying with fresh connection: {e}")
+            _client = None
+            session = StringSession(TELEGRAM_STRING_SESSION) if TELEGRAM_STRING_SESSION else SESSION_NAME
+            _client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+            await _client.start()
     return _client
 
 
@@ -73,11 +80,16 @@ def extract_segment_from_caption(caption: str) -> str:
 def extract_title_from_caption(caption: str) -> str:
     """
     Clean caption to create a video title.
-    Removes hashtags and strips whitespace.
+    Uses only the first line (before newlines), removes hashtags,
+    strips file extensions, and cleans up whitespace.
     """
     if not caption:
         return "Untitled"
-    title = _HASHTAG_RE.sub("", caption).strip()
+    # Use only the first line — captions often have batch info on subsequent lines
+    first_line = caption.split("\n")[0].strip()
+    title = _HASHTAG_RE.sub("", first_line).strip()
+    # Remove common video file extensions from title
+    title = re.sub(r"\.(mkv|mp4|avi|mov|webm)(\.(mkv|mp4|avi|mov|webm))?", "", title, flags=re.IGNORECASE).strip()
     return title if title else "Untitled"
 
 

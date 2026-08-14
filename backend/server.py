@@ -183,13 +183,21 @@ async def stream_video(msg_id: int, request: Request):
         content_length = max_chunk
 
     async def generate():
+        sent = 0
         try:
             async for chunk in stream_video_chunks(
                 msg_id, offset=start, limit=content_length
             ):
+                sent += len(chunk)
                 yield chunk
         except Exception as e:
-            logger.error(f"Streaming error for msg {msg_id}: {e}")
+            logger.error(f"Streaming error for msg {msg_id} (sent {sent}/{content_length} bytes): {e}")
+            # If we haven't sent anything yet, we can't do much —
+            # the error will propagate. If we've sent partial data,
+            # the client will get a truncated response and may retry.
+            if sent == 0:
+                # Yield empty to close the stream cleanly
+                return
 
     # Determine status code
     status = 206 if range_header else 200

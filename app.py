@@ -21,13 +21,8 @@ from backend.models import (
     get_segment_stats,
 )
 from backend.auth import hash_password, verify_password, create_access_token
-from backend.embedded_server import start_fastapi_background
-
 # ── Initialise DB on first run ────────────────────────────
 init_db()
-
-# ── Start FastAPI in background thread (for Streamlit Cloud) ──
-start_fastapi_background(port=8000)
 
 # ── Page config ───────────────────────────────────────────
 st.set_page_config(

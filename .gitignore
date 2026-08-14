@@ -22,3 +22,9 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Scratch / Temp
+scratch/
+generate_string_session.py
+send_code.py
+verify_code.py

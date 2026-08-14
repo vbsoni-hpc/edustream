@@ -8,7 +8,6 @@ Embeds a full-featured video player via st.components.v1.html() that:
 - Resumes playback from last saved position
 """
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 def render_video_player(
@@ -32,6 +31,11 @@ def render_video_player(
         title:        Video title (shown in player)
         height:       Player height in pixels
     """
+    # Sanitize title for safe HTML embedding
+    safe_title = title.replace('\n', ' ').replace('\r', ' ').strip()
+    safe_title = safe_title.replace('"', '&quot;').replace("'", '&#39;')
+    safe_title = safe_title.replace('<', '&lt;').replace('>', '&gt;')
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -154,11 +158,16 @@ def render_video_player(
                 class="video-js vjs-big-play-centered vjs-theme-fantasy"
                 controls
                 preload="metadata"
-                data-setup='{{}}'
             >
                 <source src="{api_base}/api/stream/{video_msg_id}" type="video/mp4" />
                 <p class="vjs-no-js">Enable JavaScript to watch this video.</p>
             </video>
+            <div id="error-overlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:44px; background:rgba(14,17,23,0.95); z-index:100; display:none; flex-direction:column; align-items:center; justify-content:center; border-radius:16px 16px 0 0;">
+                <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+                <div id="error-title" style="font-size:18px; font-weight:700; color:#FAFAFA; margin-bottom:8px;">Video Failed to Load</div>
+                <div id="error-detail" style="font-size:13px; color:#9CA3AF; margin-bottom:20px; text-align:center; max-width:80%;">The streaming server may not be running.</div>
+                <button id="retry-btn" onclick="location.reload()" style="background:linear-gradient(135deg,#6C63FF,#a78bfa); color:white; border:none; padding:10px 28px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.3s ease;">🔄 Retry</button>
+            </div>
             <div class="status-bar">
                 <div class="status-indicator">
                     <div class="pulse-dot" id="stream-dot"></div>
@@ -185,6 +194,14 @@ def render_video_player(
                 const player = videojs('edtech-player', {{
                     fluid: true,
                     playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                    html5: {{
+                        vhs: {{
+                            overrideNative: false
+                        }},
+                        nativeVideoTracks: true,
+                        nativeAudioTracks: true,
+                        nativeTextTracks: true
+                    }},
                     controlBar: {{
                         children: [
                             'playToggle',
@@ -197,6 +214,28 @@ def render_video_player(
                             'fullscreenToggle'
                         ]
                     }}
+                }});
+
+                // ── Error handling ──
+                player.on('error', function() {{
+                    const err = player.error();
+                    const overlay = document.getElementById('error-overlay');
+                    const detail = document.getElementById('error-detail');
+                    overlay.style.display = 'flex';
+
+                    if (err) {{
+                        const msgs = {{
+                            1: 'Video loading was aborted.',
+                            2: 'A network error occurred. Make sure the FastAPI server is running on port 8000.',
+                            3: 'The video could not be decoded. The format may not be supported by your browser.',
+                            4: 'The video source is not supported or the URL is invalid.'
+                        }};
+                        detail.textContent = msgs[err.code] || ('Error: ' + (err.message || 'Unknown error'));
+                        console.error('Video.js error:', err.code, err.message);
+                    }}
+
+                    document.getElementById('stream-dot').style.background = '#EF4444';
+                    document.getElementById('stream-status').textContent = 'Stream error';
                 }});
 
                 // Resume from last position
@@ -325,4 +364,4 @@ def render_video_player(
     </body>
     </html>
     """
-    components.html(html, height=height, scrolling=False)
+    st.html(html, height=height)

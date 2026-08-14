@@ -42,7 +42,7 @@ DB_PATH = DATA_DIR / "edtech.db"
 # ── FastAPI ───────────────────────────────────────────────
 FASTAPI_HOST = "127.0.0.1"
 FASTAPI_PORT = int(os.getenv("FASTAPI_PORT", "8000"))
-API_BASE_URL = f"http://{FASTAPI_HOST}:{FASTAPI_PORT}"
+API_BASE_URL = _get_secret("API_BASE_URL", "")
 
 # ── Telethon session file ─────────────────────────────────
 SESSION_DIR = DATA_DIR
