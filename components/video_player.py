@@ -17,7 +17,7 @@ def render_video_player(
     api_base: str = "http://127.0.0.1:8000",
     last_position: float = 0,
     title: str = "",
-    height: int = 520,
+    height: int = 650,
 ):
     """
     Render an embedded Video.js player inside Streamlit.
@@ -55,11 +55,14 @@ def render_video_player(
                 box-shadow: 0 8px 32px rgba(108, 99, 255, 0.15),
                             0 2px 8px rgba(0, 0, 0, 0.3);
                 background: #0E1117;
+                height: calc(100vh - 8px);
+                display: flex;
+                flex-direction: column;
             }}
             .video-js {{
                 width: 100% !important;
-                aspect-ratio: 16/9;
-                border-radius: 16px;
+                flex-grow: 1;
+                border-radius: 16px 16px 0 0;
             }}
             .video-js .vjs-big-play-button {{
                 border: none;
@@ -192,7 +195,7 @@ def render_video_player(
 
                 // Initialise player
                 const player = videojs('edtech-player', {{
-                    fluid: true,
+                    fill: true,
                     playbackRates: [0.5, 1, 1.25, 1.5, 2],
                     html5: {{
                         vhs: {{
