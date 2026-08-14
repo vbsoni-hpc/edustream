@@ -7,7 +7,7 @@ FASTAPI_PID=$!
 
 # Start Streamlit frontend in the background
 echo "Starting Streamlit frontend..."
-streamlit run app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --server.enableCORS false --server.enableXsrfProtection false --server.fileWatcherType none &
+streamlit run Dashboard.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --server.enableCORS false --server.enableXsrfProtection false --server.fileWatcherType none &
 STREAMLIT_PID=$!
 
 # Replace the port in nginx.conf

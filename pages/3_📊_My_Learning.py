@@ -27,7 +27,7 @@ st.set_page_config(page_title="Dashboard — EduStream", page_icon="📊", layou
 # ── Check auth ────────────────────────────────────────────
 if not st.session_state.get("user_id"):
     st.warning("Please log in first.")
-    st.page_link("app.py", label="Go to Login", icon="🔑")
+    st.page_link("Dashboard.py", label="Go to Login", icon="🔑")
     st.stop()
 
 user_id = st.session_state["user_id"]

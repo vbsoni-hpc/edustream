@@ -27,7 +27,7 @@ st.set_page_config(page_title="Courses — EduStream", page_icon="📚", layout=
 # ── Check auth ────────────────────────────────────────────
 if not st.session_state.get("user_id"):
     st.warning("Please log in first.")
-    st.page_link("app.py", label="Go to Login", icon="🔑")
+    st.page_link("Dashboard.py", label="Go to Login", icon="🔑")
     st.stop()
 
 from components.notifications import check_and_show_notifications

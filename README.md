@@ -70,7 +70,7 @@ Open **http://localhost:8501** in your browser.
 
 1. Push to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repo, set **Main file path** to `app.py`
+3. Connect your repo, set **Main file path** to `Dashboard.py`
 4. Add secrets in the Streamlit Cloud dashboard:
 
 ```toml
@@ -85,7 +85,7 @@ JWT_SECRET = "your_random_secret"
 ## 📁 Project Structure
 
 ```
-├── app.py                    # Home page + login/register
+├── Dashboard.py                    # Home page + login/register
 ├── pages/
 │   ├── 1_📚_Courses.py       # Browse segments & videos
 │   ├── 2_🎬_Player.py        # Video player with tracking

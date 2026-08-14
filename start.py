@@ -59,7 +59,7 @@ def main():
         print()
         streamlit_cmd = [
             sys.executable, "-m", "streamlit", "run",
-            "app.py",
+            "Dashboard.py",
             "--server.port", "8501",
             "--server.headless", "true",
             "--browser.gatherUsageStats", "false",
