@@ -41,13 +41,24 @@ def render_messaging_sidebar():
                 msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
                 sender_name = "You" if is_me else msg['sender_name']
                 
-                html += f"""
-                <div style="font-size: 12px; margin-bottom: 8px; line-height: 1.3;">
-                    <span style="font-weight: 600; color: #a78bfa;">{sender_name}</span>
-                    <span style="font-size: 10px; color: #6B7280; margin-left: 4px;">{msg_time}</span><br>
-                    <span style="color: #E5E7EB;">{msg['content']}</span>
-                </div>
-                """
+                if is_me:
+                    html += f"""
+                    <div style="margin-bottom: 8px; text-align: right;">
+                        <div style="display: inline-block; background: rgba(108, 99, 255, 0.2); border-right: 3px solid #6C63FF; padding: 8px 10px; border-radius: 12px 0 12px 12px; text-align: left; max-width: 90%;">
+                            <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
+                            <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
+                        </div>
+                    </div>
+                    """
+                else:
+                    html += f"""
+                    <div style="margin-bottom: 8px; text-align: left;">
+                        <div style="display: inline-block; background: rgba(26, 29, 41, 0.8); border-left: 3px solid #a78bfa; padding: 8px 10px; border-radius: 0 12px 12px 12px; text-align: left; max-width: 90%; border: 1px solid rgba(108, 99, 255, 0.15); border-left-width: 3px;">
+                            <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
+                            <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
+                        </div>
+                    </div>
+                    """
             html += '</div>'
             st.markdown(html, unsafe_allow_html=True)
 
