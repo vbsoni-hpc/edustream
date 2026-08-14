@@ -76,12 +76,18 @@ CREATE TABLE IF NOT EXISTS messages (
     is_read      INTEGER NOT NULL DEFAULT 0,
     created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
 );
+CREATE TABLE IF NOT EXISTS notices (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    content      TEXT    NOT NULL,
+    created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
 """
 
 # Migration: add module_id to existing videos table if missing
 _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
-    "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0"
+    "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0",
+    "CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))"
 ]
 
 
@@ -183,6 +189,19 @@ def get_unread_messages(user_id: int) -> list[dict]:
         """, (user_id,)).fetchall()
         return [dict(r) for r in rows]
 
+def get_group_messages(limit: int = 50) -> list[dict]:
+    """Get all global group chat messages (where recipient_id = 0)"""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT m.*, u.username as sender_username, u.display_name as sender_name
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.recipient_id = 0
+            ORDER BY m.created_at ASC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
 def mark_messages_read(message_ids: list[int]):
     if not message_ids:
         return
@@ -190,6 +209,18 @@ def mark_messages_read(message_ids: list[int]):
         placeholders = ",".join("?" for _ in message_ids)
         c.execute(f"UPDATE messages SET is_read = 1 WHERE id IN ({placeholders})", message_ids)
         c.commit()
+
+# ── Notices ───────────────────────────────────────────────
+
+def add_notice(content: str):
+    with _conn() as c:
+        c.execute("INSERT INTO notices (content) VALUES (?)", (content,))
+        c.commit()
+
+def get_latest_notices(limit: int = 3) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM notices ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ── Segments ──────────────────────────────────────────────

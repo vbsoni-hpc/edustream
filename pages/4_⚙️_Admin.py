@@ -28,6 +28,7 @@ from backend.models import (
     move_videos_to_module,
     unassign_videos_from_module,
     upsert_video,
+    add_notice,
 )
 
 init_db()
@@ -61,6 +62,21 @@ st.markdown("# ⚙️ Admin Panel")
 st.markdown("Manage Telegram sync, segments, modules, and video organization.")
 st.markdown("---")
 
+# ═══════════════════════════════════════════════════════════
+#  Notices
+# ═══════════════════════════════════════════════════════════
+st.markdown("### 📢 Post Notice")
+st.markdown("Broadcast an important message to all students on the dashboard.")
+with st.form("notice_form", clear_on_submit=True):
+    notice_text = st.text_area("Notice Content", placeholder="Type your notice here...")
+    submitted = st.form_submit_button("Post Notice", type="primary")
+    if submitted:
+        if notice_text.strip():
+            add_notice(notice_text.strip())
+            st.success("✅ Notice posted successfully!")
+        else:
+            st.error("Notice cannot be empty.")
+st.markdown("---")
 
 # ── Natural sort helper ──────────────────────────────────
 _NUM_RE = re.compile(r"(\d+)")

@@ -15,7 +15,8 @@ from backend.models import (
     send_message,
     get_messages_for_user,
     mark_messages_read,
-    get_unread_messages
+    get_unread_messages,
+    get_group_messages,
 )
 
 init_db()
@@ -84,12 +85,67 @@ st.markdown("""
         margin-left: 8px;
         font-weight: bold;
     }
+    
+    /* Group Chat Specific */
+    .chat-bubble-me {
+        background: rgba(108, 99, 255, 0.2);
+        border-right: 3px solid #6C63FF;
+        margin-left: 20%;
+        border-radius: 12px 0 12px 12px;
+    }
+    .chat-bubble-other {
+        background: rgba(26, 29, 41, 0.8);
+        border-left: 3px solid #a78bfa;
+        margin-right: 20%;
+        border-radius: 0 12px 12px 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("💬 Messages")
 
-tab_inbox, tab_compose = st.tabs(["📥 Inbox", "✏️ Compose"])
+tab_group, tab_inbox, tab_compose = st.tabs(["🌍 Group Chat", "📥 Direct Inbox", "✏️ Compose"])
+
+# ═══════════════════════════════════════════════════════════
+#  Group Chat Tab
+# ═══════════════════════════════════════════════════════════
+with tab_group:
+    st.markdown("### 🌍 Global Chat")
+    st.caption("Talk with everyone in the course!")
+    
+    # Form for new messages
+    with st.form("group_chat_form", clear_on_submit=True):
+        col_input, col_btn = st.columns([5, 1])
+        with col_input:
+            new_group_msg = st.text_input("Message", placeholder="Type your message to the group...", label_visibility="collapsed")
+        with col_btn:
+            submitted = st.form_submit_button("Send 🚀", use_container_width=True)
+            if submitted and new_group_msg.strip():
+                send_message(current_user_id, 0, new_group_msg.strip())
+                st.rerun()
+
+    st.markdown("---")
+    
+    # Display group messages (newest at bottom, so we render list as is since SQL order is ASC)
+    group_msgs = get_group_messages(50)
+    if not group_msgs:
+        st.info("No messages yet. Be the first to say hi!")
+    else:
+        for msg in group_msgs:
+            is_me = (msg['sender_id'] == current_user_id)
+            msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
+            bubble_class = "chat-bubble-me" if is_me else "chat-bubble-other"
+            sender_name = "You" if is_me else msg['sender_name']
+            
+            st.markdown(f"""
+            <div class="msg-card {bubble_class}">
+                <div class="msg-header">
+                    <span class="msg-sender">👤 {sender_name}</span>
+                    <span class="msg-time">{msg_time}</span>
+                </div>
+                <div class="msg-content">{msg['content']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════
 #  Inbox Tab

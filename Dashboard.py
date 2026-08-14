@@ -21,6 +21,7 @@ from backend.models import (
     ping_user,
     get_online_users,
     get_leaderboard,
+    get_latest_notices,
 )
 from backend.auth import hash_password, verify_password, create_access_token
 # ── Initialise DB on first run ────────────────────────────
@@ -384,6 +385,14 @@ def show_home():
 
     st.markdown(f'<div class="hero-title">Welcome back, {display_name} 👋</div>', unsafe_allow_html=True)
     st.markdown('<div class="hero-subtitle">Continue your learning journey</div>', unsafe_allow_html=True)
+
+    # ── Notices ──
+    notices = get_latest_notices(3)
+    if notices:
+        st.markdown("### 📢 Important Notices")
+        for notice in notices:
+            st.info(notice['content'])
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Quick Stats ──
     col1, col2, col3, col4 = st.columns(4)
