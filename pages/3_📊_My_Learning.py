@@ -16,6 +16,7 @@ from backend.models import (
     init_db,
     get_dashboard_stats,
     get_segment_stats,
+    get_module_stats,
     get_daily_watch_activity,
     get_user_progress,
 )
@@ -270,3 +271,28 @@ if seg_stats:
             st.markdown(f"**{seg['icon']} {seg['name']}** — {seg['completed_videos']}/{seg['total_videos']} done · {watch_h:.1f}h watched")
         with col_bar:
             st.progress(min(seg_pct / 100, 1.0), text=f"{seg_pct:.0f}%")
+
+# ── Detailed module breakdown ─────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### 📂 Module Breakdown")
+
+module_stats = get_module_stats(user_id)
+if module_stats:
+    from collections import defaultdict
+    mod_by_seg = defaultdict(list)
+    for m in module_stats:
+        mod_by_seg[m["segment_name"]].append(m)
+    
+    for seg_name, mods in mod_by_seg.items():
+        st.markdown(f"**{seg_name}**")
+        for m in mods:
+            m_pct = (m["completed_videos"] / m["total_videos"] * 100) if m["total_videos"] > 0 else 0
+            m_watch_h = m["watch_seconds"] / 3600
+            
+            c1, c2 = st.columns([2, 3])
+            with c1:
+                st.markdown(f"&nbsp;&nbsp;&nbsp;↳ {m['icon']} {m['name']} — {m['completed_videos']}/{m['total_videos']} done · {m_watch_h:.1f}h")
+            with c2:
+                st.progress(min(m_pct / 100, 1.0), text=f"{m_pct:.0f}%")
+else:
+    st.info("No modules to display.")

@@ -486,6 +486,25 @@ def get_segment_stats(user_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def get_module_stats(user_id: int) -> list[dict]:
+    """Per-module completion and watch time."""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT 
+                m.id, m.name, m.icon, m.segment_id, s.name as segment_name, s.icon as segment_icon,
+                COUNT(v.id) as total_videos,
+                COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
+                COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+            FROM modules m
+            JOIN segments s ON m.segment_id = s.id
+            LEFT JOIN videos v ON v.module_id = m.id
+            LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+            GROUP BY m.id
+            ORDER BY s.sort_order, m.sort_order, m.name
+        """, (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_daily_watch_activity(user_id: int, days: int = 30) -> list[dict]:
     """Daily watch seconds for the last N days."""
     with _conn() as c:
