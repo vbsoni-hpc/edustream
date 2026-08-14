@@ -40,6 +40,10 @@ if not st.session_state.get("user_id"):
     st.page_link("Dashboard.py", label="Go to Login", icon="🔑")
     st.stop()
 
+if st.session_state.get("username") != "vbsoni":
+    st.error("🔒 Access Denied. You must be the administrator (vbsoni) to view this page.")
+    st.stop()
+
 from components.notifications import check_and_show_notifications
 check_and_show_notifications()
 

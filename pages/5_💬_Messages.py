@@ -30,7 +30,7 @@ if not st.session_state.get("user_id"):
 
 current_user_id = st.session_state["user_id"]
 current_username = st.session_state["username"]
-is_admin = (current_username == "admin")  # Simple admin check based on username
+is_admin = (current_username == "vbsoni")  # Simple admin check based on username
 
 # ── Global Notification Hook ─────────────────────────────
 # We trigger this at the top so toasts appear even on this page
