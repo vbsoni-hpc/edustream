@@ -35,6 +35,9 @@ is_admin = (current_username == "vbsoni")  # Simple admin check based on usernam
 
 # ── Global Notification Hook ─────────────────────────────
 # We trigger this at the top so toasts appear even on this page
+from components.chat_widget import render_chat_widget
+render_chat_widget()
+
 unread = get_unread_messages(current_user_id)
 if unread:
     for msg in unread:

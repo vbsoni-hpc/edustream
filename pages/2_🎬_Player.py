@@ -34,7 +34,9 @@ if not st.session_state.get("user_id"):
     st.stop()
 
 from components.notifications import check_and_show_notifications
+from components.chat_widget import render_chat_widget
 check_and_show_notifications()
+render_chat_widget()
 
 user_id = st.session_state["user_id"]
 jwt_token = st.session_state.get("jwt_token", "")

@@ -45,8 +45,11 @@ if st.session_state.get("username") != "vbsoni":
     st.error("🔒 Access Denied. You must be the administrator (vbsoni) to view this page.")
     st.stop()
 
+# ── Global Notification Hook ─────────────────────────────
 from components.notifications import check_and_show_notifications
+from components.chat_widget import render_chat_widget
 check_and_show_notifications()
+render_chat_widget()
 
 # ── CSS ───────────────────────────────────────────────────
 st.markdown("""

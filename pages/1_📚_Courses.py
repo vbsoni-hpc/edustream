@@ -30,8 +30,11 @@ if not st.session_state.get("user_id"):
     st.page_link("Dashboard.py", label="Go to Login", icon="🔑")
     st.stop()
 
+# ── Global Notification Hook ─────────────────────────────
 from components.notifications import check_and_show_notifications
+from components.chat_widget import render_chat_widget
 check_and_show_notifications()
+render_chat_widget()
 
 user_id = st.session_state["user_id"]
 
