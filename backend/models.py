@@ -68,6 +68,14 @@ CREATE TABLE IF NOT EXISTS progress (
     last_watched_at REAL    NOT NULL DEFAULT (strftime('%s','now')),
     UNIQUE(user_id, video_id)
 );
+CREATE TABLE IF NOT EXISTS messages (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id    INTEGER NOT NULL REFERENCES users(id),
+    recipient_id INTEGER NOT NULL REFERENCES users(id),
+    content      TEXT    NOT NULL,
+    is_read      INTEGER NOT NULL DEFAULT 0,
+    created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
 """
 
 # Migration: add module_id to existing videos table if missing
@@ -135,6 +143,53 @@ def create_user(username: str, password_hash: str, display_name: str = "") -> in
         )
         c.commit()
         return cur.lastrowid
+
+
+def get_all_users() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("SELECT id, username, display_name FROM users ORDER BY display_name").fetchall()
+        return [dict(r) for r in rows]
+
+# ── Messages ──────────────────────────────────────────────
+
+def send_message(sender_id: int, recipient_id: int, content: str):
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO messages (sender_id, recipient_id, content) VALUES (?, ?, ?)",
+            (sender_id, recipient_id, content)
+        )
+        c.commit()
+
+def get_messages_for_user(user_id: int) -> list[dict]:
+    """Get all received messages with sender details."""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT m.*, u.username as sender_username, u.display_name as sender_name
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.recipient_id = ?
+            ORDER BY m.created_at DESC
+        """, (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+def get_unread_messages(user_id: int) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT m.*, u.display_name as sender_name
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.recipient_id = ? AND m.is_read = 0
+            ORDER BY m.created_at ASC
+        """, (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+def mark_messages_read(message_ids: list[int]):
+    if not message_ids:
+        return
+    with _conn() as c:
+        placeholders = ",".join("?" for _ in message_ids)
+        c.execute(f"UPDATE messages SET is_read = 1 WHERE id IN ({placeholders})", message_ids)
+        c.commit()
 
 
 # ── Segments ──────────────────────────────────────────────

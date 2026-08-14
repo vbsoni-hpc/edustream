@@ -513,6 +513,8 @@ def show_home():
 # ═══════════════════════════════════════════════════════════
 
 if is_logged_in():
+    from components.notifications import check_and_show_notifications
+    check_and_show_notifications()
     ping_user(st.session_state["user_id"])
     show_home()
 else:
