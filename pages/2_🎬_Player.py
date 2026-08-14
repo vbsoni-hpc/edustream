@@ -4,6 +4,7 @@
 Streams video from Telegram via FastAPI's MTProto proxy.
 Tracks watch progress and auto-marks completion.
 """
+import re
 import streamlit as st
 import sys
 from pathlib import Path
@@ -163,8 +164,14 @@ with col_complete:
 # ── Prev / Next navigation ───────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Get sibling videos in the same segment
+# Get sibling videos in the same segment, sorted by lecture number
+_NUM_RE = re.compile(r"(\d+)")
+def _natural_key(t):
+    nums = _NUM_RE.findall(t)
+    return tuple(int(n) for n in nums) if nums else (float("inf"),)
+
 segment_videos = get_videos_by_segment(video.get("segment_id")) if video.get("segment_id") else []
+segment_videos = sorted(segment_videos, key=lambda v: _natural_key(v["title"]))
 current_idx = next((i for i, v in enumerate(segment_videos) if v["id"] == video_id), -1)
 
 col_prev, col_info, col_next = st.columns([1, 2, 1])

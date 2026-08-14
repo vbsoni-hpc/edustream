@@ -4,6 +4,7 @@
 Lists all segments with their videos, shows completion status (✅),
 and allows clicking into the video player.
 """
+import re
 import streamlit as st
 import sys
 from pathlib import Path
@@ -159,6 +160,12 @@ segment_names = ["All Segments"] + [f"{s['icon']} {s['name']}" for s in segments
 with st.sidebar:
     st.markdown("### 🔍 Filter")
     selected = st.selectbox("Segment", segment_names, label_visibility="collapsed")
+    st.markdown("### 🔄 Sort By")
+    sort_mode = st.selectbox(
+        "Sort",
+        ["Lecture Number", "Title (A-Z)", "Title (Z-A)", "Duration (Short→Long)", "Duration (Long→Short)"],
+        label_visibility="collapsed",
+    )
 
 # Determine which segments to show
 if selected == "All Segments":
@@ -167,6 +174,37 @@ else:
     # Strip icon to find the segment name
     sel_name = selected.split(" ", 1)[1] if " " in selected else selected
     segments_to_show = [s for s in segments if s["name"] == sel_name]
+
+
+# ── Natural sort helpers ─────────────────────────────────
+
+_NUM_RE = re.compile(r"(\d+)")
+
+
+def _natural_sort_key(title: str) -> tuple:
+    """
+    Extract all numbers from a title and return as a tuple for sorting.
+    '148.Lecture 01 Vector.mkv' → (148, 1)
+    '5.Lecture 10 Integrals.mkv' → (5, 10)
+    Handles any naming pattern with embedded numbers.
+    """
+    nums = _NUM_RE.findall(title)
+    return tuple(int(n) for n in nums) if nums else (float("inf"),)
+
+
+def _sort_videos(videos: list[dict], mode: str) -> list[dict]:
+    """Sort video list based on selected mode."""
+    if mode == "Lecture Number":
+        return sorted(videos, key=lambda v: _natural_sort_key(v["title"]))
+    elif mode == "Title (A-Z)":
+        return sorted(videos, key=lambda v: v["title"].lower())
+    elif mode == "Title (Z-A)":
+        return sorted(videos, key=lambda v: v["title"].lower(), reverse=True)
+    elif mode == "Duration (Short→Long)":
+        return sorted(videos, key=lambda v: v["duration_sec"])
+    elif mode == "Duration (Long→Short)":
+        return sorted(videos, key=lambda v: v["duration_sec"], reverse=True)
+    return videos
 
 
 # ── Helper: format duration ──────────────────────────────
@@ -184,6 +222,7 @@ def fmt_duration(sec: float) -> str:
 # ── Render segments & videos ─────────────────────────────
 for seg in segments_to_show:
     videos = get_videos_by_segment(seg["id"])
+    videos = _sort_videos(videos, sort_mode)
     if not videos:
         continue
 
