@@ -18,6 +18,8 @@ from backend.models import (
     get_video_progress,
     get_videos_by_segment,
     mark_video_complete,
+    get_group_messages,
+    send_message,
 )
 from components.video_player import render_video_player
 
@@ -103,6 +105,48 @@ st.markdown("""
         height: 100%;
         border-radius: 3px;
         background: linear-gradient(90deg, #6C63FF, #a78bfa);
+    }
+
+    /* Chat styling */
+    .msg-card {
+        background: linear-gradient(135deg, rgba(26, 29, 41, 0.9), rgba(26, 29, 41, 0.6));
+        border: 1px solid rgba(108, 99, 255, 0.15);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+    }
+    .msg-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+    .msg-sender {
+        font-weight: 600;
+        color: #a78bfa;
+        font-size: 13px;
+    }
+    .msg-time {
+        font-size: 11px;
+        color: #9CA3AF;
+    }
+    .msg-content {
+        color: #FAFAFA;
+        font-size: 13px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+    }
+    .chat-bubble-me {
+        background: rgba(108, 99, 255, 0.2);
+        border-right: 3px solid #6C63FF;
+        margin-left: 10%;
+        border-radius: 12px 0 12px 12px;
+    }
+    .chat-bubble-other {
+        background: rgba(26, 29, 41, 0.8);
+        border-left: 3px solid #a78bfa;
+        margin-right: 10%;
+        border-radius: 0 12px 12px 12px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -228,3 +272,41 @@ with col_next:
         if st.button("Next ➡", key="next_btn", use_container_width=True):
             st.session_state["current_video_id"] = next_video["id"]
             st.rerun()
+
+# ── Global Chat ───────────────────────────────────────────
+st.markdown("---")
+st.markdown("### 🌍 Course Discussion")
+
+from datetime import datetime
+
+# Form for new messages
+with st.form("player_chat_form", clear_on_submit=True):
+    col_input, col_btn = st.columns([5, 1])
+    with col_input:
+        new_group_msg = st.text_input("Message", placeholder="Chat with other students here...", label_visibility="collapsed")
+    with col_btn:
+        submitted = st.form_submit_button("Send 🚀", use_container_width=True)
+        if submitted and new_group_msg.strip():
+            send_message(user_id, 0, new_group_msg.strip())
+            st.rerun()
+
+# Display group messages (newest at bottom)
+group_msgs = get_group_messages(15)  # only show last 15 in player to save space
+if not group_msgs:
+    st.info("No messages yet. Say hi!")
+else:
+    for msg in group_msgs:
+        is_me = (msg['sender_id'] == user_id)
+        msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
+        bubble_class = "chat-bubble-me" if is_me else "chat-bubble-other"
+        sender_name = "You" if is_me else msg['sender_name']
+        
+        st.markdown(f"""
+        <div class="msg-card {bubble_class}">
+            <div class="msg-header">
+                <span class="msg-sender">👤 {sender_name}</span>
+                <span class="msg-time">{msg_time}</span>
+            </div>
+            <div class="msg-content">{msg['content']}</div>
+        </div>
+        """, unsafe_allow_html=True)
