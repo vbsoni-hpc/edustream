@@ -523,10 +523,10 @@ def show_home():
 
 if is_logged_in():
     from components.notifications import check_and_show_notifications
-    from components.chat_widget import render_chat_widget
+    from components.messaging_sidebar import render_messaging_sidebar
     
     check_and_show_notifications()
-    render_chat_widget()
+    render_messaging_sidebar()
     ping_user(st.session_state["user_id"])
     show_home()
 else:

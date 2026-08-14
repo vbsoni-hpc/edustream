@@ -80,10 +80,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ── Global Notification Hook ─────────────────────────────
+from components.notifications import check_and_show_notifications
+from components.messaging_sidebar import render_messaging_sidebar
+check_and_show_notifications()
+render_messaging_sidebar()
+daily_activity = get_daily_watch_activity(user_id, 30)
+
+
 # ── Data ──────────────────────────────────────────────────
 stats = get_dashboard_stats(user_id)
 seg_stats = get_segment_stats(user_id)
-daily_activity = get_daily_watch_activity(user_id, 30)
 
 
 # ── Header ────────────────────────────────────────────────
