@@ -364,16 +364,21 @@ def show_home():
         st.divider()
         
         # Online users widget (5 second threshold)
-        online_users = get_online_users(minutes=1/12)
-        st.markdown("**🟢 Online Now**")
-        if online_users:
-            html = "<div>"
-            for u in online_users:
-                html += f'<div class="online-badge"><div class="online-dot"></div>{u["display_name"]}</div>'
-            html += "</div>"
-            st.markdown(html, unsafe_allow_html=True)
-        else:
-            st.caption("No one is online right now.")
+        @st.fragment(run_every="5s")
+        def render_online_users_widget():
+            ping_user(user_id)
+            online_users = get_online_users(minutes=1/12)
+            st.markdown("**🟢 Online Now**")
+            if online_users:
+                html = "<div>"
+                for u in online_users:
+                    html += f'<div class="online-badge"><div class="online-dot"></div>{u["display_name"]}</div>'
+                html += "</div>"
+                st.markdown(html, unsafe_allow_html=True)
+            else:
+                st.caption("No one is online right now.")
+        
+        render_online_users_widget()
             
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
