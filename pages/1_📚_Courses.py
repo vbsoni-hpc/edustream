@@ -15,6 +15,7 @@ from backend.models import (
     init_db,
     get_all_segments,
     get_videos_by_segment,
+    get_modules_by_segment,
     get_video_progress,
     get_segment_stats,
 )
@@ -219,6 +220,43 @@ def fmt_duration(sec: float) -> str:
     return f"{m}:{s:02d}"
 
 
+
+# ── Helper: render a list of videos ──────────────────────
+def render_video_list(video_list, prefix=""):
+    """Render a list of video cards with play buttons."""
+    for idx, video in enumerate(video_list, 1):
+        prog = get_video_progress(user_id, video["id"])
+        is_complete = prog and prog["completed"]
+        watch_sec = prog["watch_seconds"] if prog else 0
+
+        index_class = "video-index completed" if is_complete else "video-index"
+        index_text = "✓" if is_complete else str(idx)
+        badge_class = "watch-badge done" if is_complete else "watch-badge"
+        badge_text = "✅ Done" if is_complete else f"▶ {fmt_duration(watch_sec)} watched"
+
+        st.markdown(f"""
+        <div class="video-card">
+            <div class="video-left">
+                <div class="{index_class}">{index_text}</div>
+                <div>
+                    <div class="video-title">{video['title']}</div>
+                    <div class="video-meta">Duration: {fmt_duration(video['duration_sec'])}</div>
+                </div>
+            </div>
+            <div class="video-right">
+                <span class="{badge_class}">{badge_text}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Play button — Streamlit native for navigation
+        col1, col2 = st.columns([6, 1])
+        with col2:
+            if st.button("▶️ Play", key=f"play_{prefix}{video['id']}", use_container_width=True):
+                st.session_state["current_video_id"] = video["id"]
+                st.switch_page("pages/2_🎬_Player.py")
+
+
 # ── Render segments & videos ─────────────────────────────
 for seg in segments_to_show:
     videos = get_videos_by_segment(seg["id"])
@@ -248,37 +286,32 @@ for seg in segments_to_show:
     </div>
     """, unsafe_allow_html=True)
 
-    # Video list
-    for idx, video in enumerate(videos, 1):
-        prog = get_video_progress(user_id, video["id"])
-        is_complete = prog and prog["completed"]
-        watch_sec = prog["watch_seconds"] if prog else 0
+    # Get modules for this segment
+    seg_modules = get_modules_by_segment(seg["id"])
 
-        index_class = "video-index completed" if is_complete else "video-index"
-        index_text = "✓" if is_complete else str(idx)
-        badge_class = "watch-badge done" if is_complete else "watch-badge"
-        badge_text = "✅ Done" if is_complete else f"▶ {fmt_duration(watch_sec)} watched"
+    if seg_modules:
+        # Group videos by module
+        for mod in seg_modules:
+            mod_videos = [v for v in videos if v.get("module_id") == mod["id"]]
+            if not mod_videos:
+                continue
 
-        st.markdown(f"""
-        <div class="video-card">
-            <div class="video-left">
-                <div class="{index_class}">{index_text}</div>
-                <div>
-                    <div class="video-title">{video['title']}</div>
-                    <div class="video-meta">Duration: {fmt_duration(video['duration_sec'])}</div>
-                </div>
-            </div>
-            <div class="video-right">
-                <span class="{badge_class}">{badge_text}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            mod_completed = sum(
+                1 for v in mod_videos
+                if (p := get_video_progress(user_id, v["id"])) and p["completed"]
+            )
+            mod_pct = (mod_completed / len(mod_videos) * 100) if mod_videos else 0
 
-        # Play button — Streamlit native for navigation
-        col1, col2 = st.columns([6, 1])
-        with col2:
-            if st.button("▶️ Play", key=f"play_{video['id']}", use_container_width=True):
-                st.session_state["current_video_id"] = video["id"]
-                st.switch_page("pages/2_🎬_Player.py")
+            with st.expander(f"{mod['icon']} {mod['name']}  —  {mod_completed}/{len(mod_videos)} done · {mod_pct:.0f}%", expanded=False):
+                render_video_list(mod_videos, prefix=f"m{mod['id']}_")
+
+        # Show unassigned videos (no module)
+        unassigned = [v for v in videos if not v.get("module_id")]
+        if unassigned:
+            with st.expander(f"📄 Other Lectures  —  {len(unassigned)} videos", expanded=False):
+                render_video_list(unassigned, prefix="unassigned_")
+    else:
+        # No modules — show all videos flat
+        render_video_list(videos)
 
     st.markdown("---")

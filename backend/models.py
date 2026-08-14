@@ -35,11 +35,21 @@ CREATE TABLE IF NOT EXISTS segments (
     sort_order INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS modules (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    segment_id INTEGER NOT NULL REFERENCES segments(id),
+    icon       TEXT    NOT NULL DEFAULT '📂',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(name, segment_id)
+);
+
 CREATE TABLE IF NOT EXISTS videos (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_msg_id INTEGER UNIQUE NOT NULL,
     title           TEXT    NOT NULL DEFAULT 'Untitled',
     segment_id      INTEGER REFERENCES segments(id),
+    module_id       INTEGER REFERENCES modules(id),
     duration_sec    REAL    NOT NULL DEFAULT 0,
     file_size       INTEGER NOT NULL DEFAULT 0,
     mime_type       TEXT    NOT NULL DEFAULT 'video/mp4',
@@ -59,11 +69,22 @@ CREATE TABLE IF NOT EXISTS progress (
 );
 """
 
+# Migration: add module_id to existing videos table if missing
+_MIGRATIONS = [
+    "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
+]
+
 
 def init_db():
     """Create tables if they don't exist (sync, for startup)."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.executescript(_SCHEMA)
+    # Run safe migrations
+    for migration in _MIGRATIONS:
+        try:
+            conn.execute(migration)
+        except sqlite3.OperationalError:
+            pass  # Column already exists
     conn.commit()
     conn.close()
 
@@ -72,6 +93,11 @@ async def async_init_db():
     """Create tables if they don't exist (async, for FastAPI startup)."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
         await db.executescript(_SCHEMA)
+        for migration in _MIGRATIONS:
+            try:
+                await db.execute(migration)
+            except Exception:
+                pass
         await db.commit()
 
 
@@ -140,14 +166,90 @@ def update_segment(segment_id: int, name: str = None, icon: str = None, sort_ord
         c.commit()
 
 
+# ── Modules ──────────────────────────────────────────────
+
+def get_all_modules() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT m.*, s.name as segment_name, s.icon as segment_icon
+            FROM modules m
+            LEFT JOIN segments s ON m.segment_id = s.id
+            ORDER BY m.segment_id, m.sort_order, m.name
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_modules_by_segment(segment_id: int) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT * FROM modules
+            WHERE segment_id = ?
+            ORDER BY sort_order, name
+        """, (segment_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_or_create_module(name: str, segment_id: int, icon: str = "📂") -> int:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT id FROM modules WHERE name = ? AND segment_id = ?",
+            (name, segment_id)
+        ).fetchone()
+        if row:
+            return row["id"]
+        cur = c.execute(
+            "INSERT INTO modules (name, segment_id, icon) VALUES (?, ?, ?)",
+            (name, segment_id, icon)
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def update_module(module_id: int, name: str = None, icon: str = None, sort_order: int = None):
+    with _conn() as c:
+        if name is not None:
+            c.execute("UPDATE modules SET name = ? WHERE id = ?", (name, module_id))
+        if icon is not None:
+            c.execute("UPDATE modules SET icon = ? WHERE id = ?", (icon, module_id))
+        if sort_order is not None:
+            c.execute("UPDATE modules SET sort_order = ? WHERE id = ?", (sort_order, module_id))
+        c.commit()
+
+
+def delete_module(module_id: int):
+    """Delete a module and unassign its videos (set module_id to NULL)."""
+    with _conn() as c:
+        c.execute("UPDATE videos SET module_id = NULL WHERE module_id = ?", (module_id,))
+        c.execute("DELETE FROM modules WHERE id = ?", (module_id,))
+        c.commit()
+
+
+def move_videos_to_module(video_ids: list[int], module_id: int):
+    """Assign a list of videos to a module."""
+    with _conn() as c:
+        for vid in video_ids:
+            c.execute("UPDATE videos SET module_id = ? WHERE id = ?", (module_id, vid))
+        c.commit()
+
+
+def unassign_videos_from_module(video_ids: list[int]):
+    """Remove videos from their module (set to NULL)."""
+    with _conn() as c:
+        for vid in video_ids:
+            c.execute("UPDATE videos SET module_id = NULL WHERE id = ?", (vid,))
+        c.commit()
+
+
 # ── Videos ────────────────────────────────────────────────
 
 def get_all_videos() -> list[dict]:
     with _conn() as c:
         rows = c.execute("""
-            SELECT v.*, s.name as segment_name, s.icon as segment_icon
+            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                   m.name as module_name, m.icon as module_icon
             FROM videos v
             LEFT JOIN segments s ON v.segment_id = s.id
+            LEFT JOIN modules m ON v.module_id = m.id
             ORDER BY s.sort_order, v.telegram_msg_id
         """).fetchall()
         return [dict(r) for r in rows]
@@ -156,21 +258,39 @@ def get_all_videos() -> list[dict]:
 def get_videos_by_segment(segment_id: int) -> list[dict]:
     with _conn() as c:
         rows = c.execute("""
-            SELECT v.*, s.name as segment_name, s.icon as segment_icon
+            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                   m.name as module_name, m.icon as module_icon
             FROM videos v
             LEFT JOIN segments s ON v.segment_id = s.id
+            LEFT JOIN modules m ON v.module_id = m.id
             WHERE v.segment_id = ?
             ORDER BY v.telegram_msg_id
         """, (segment_id,)).fetchall()
         return [dict(r) for r in rows]
 
 
+def get_videos_by_module(module_id: int) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                   m.name as module_name, m.icon as module_icon
+            FROM videos v
+            LEFT JOIN segments s ON v.segment_id = s.id
+            LEFT JOIN modules m ON v.module_id = m.id
+            WHERE v.module_id = ?
+            ORDER BY v.telegram_msg_id
+        """, (module_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_video_by_id(video_id: int) -> Optional[dict]:
     with _conn() as c:
         row = c.execute("""
-            SELECT v.*, s.name as segment_name, s.icon as segment_icon
+            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                   m.name as module_name, m.icon as module_icon
             FROM videos v
             LEFT JOIN segments s ON v.segment_id = s.id
+            LEFT JOIN modules m ON v.module_id = m.id
             WHERE v.id = ?
         """, (video_id,)).fetchone()
         return dict(row) if row else None
