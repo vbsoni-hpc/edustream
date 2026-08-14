@@ -126,8 +126,14 @@ if not video:
     st.stop()
 
 progress = get_video_progress(user_id, video_id)
-last_position = progress["last_position"] if progress else 0
 is_complete = progress["completed"] if progress else False
+
+# Store the initial start position in session state so it doesn't change on st.rerun
+if st.session_state.get("player_video_id") != video_id:
+    st.session_state["player_start_pos"] = progress["last_position"] if progress else 0
+    st.session_state["player_video_id"] = video_id
+
+last_position = st.session_state["player_start_pos"]
 
 
 # ── Header ────────────────────────────────────────────────
