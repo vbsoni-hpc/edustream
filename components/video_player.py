@@ -364,4 +364,5 @@ def render_video_player(
     </body>
     </html>
     """
-    st.html(html, height=height)
+    import streamlit.components.v1 as components
+    components.html(html, height=height)
