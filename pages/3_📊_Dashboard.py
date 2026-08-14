@@ -192,7 +192,6 @@ with col_bar:
             marker=dict(
                 color=seg_hours,
                 colorscale=[[0, "#6C63FF"], [1, "#a78bfa"]],
-                cornerradius=6,
             ),
             hovertemplate="<b>%{y}</b><br>%{x:.1f} hours<extra></extra>",
         )])
@@ -232,7 +231,6 @@ if daily_activity:
         marker=dict(
             color=minutes,
             colorscale=[[0, "rgba(108,99,255,0.3)"], [0.5, "#6C63FF"], [1, "#a78bfa"]],
-            cornerradius=4,
         ),
         hovertemplate="<b>%{x}</b><br>%{y:.0f} minutes<extra></extra>",
     )])
@@ -271,4 +269,4 @@ if seg_stats:
         with col_info:
             st.markdown(f"**{seg['icon']} {seg['name']}** — {seg['completed_videos']}/{seg['total_videos']} done · {watch_h:.1f}h watched")
         with col_bar:
-            st.progress(seg_pct / 100, text=f"{seg_pct:.0f}%")
+            st.progress(min(seg_pct / 100, 1.0), text=f"{seg_pct:.0f}%")
