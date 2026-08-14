@@ -10,6 +10,72 @@ from backend.models import (
     get_all_users
 )
 
+@st.fragment(run_every="5s")
+def render_global_chat_messages(user_id):
+    group_msgs = get_group_messages(15)
+    if not group_msgs:
+        st.caption("No messages yet. Say hi!")
+    else:
+        html = '<div style="max-height: 250px; overflow-y: auto;">'
+        for msg in group_msgs:
+            is_me = (msg['sender_id'] == user_id)
+            msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
+            sender_name = "You" if is_me else msg['sender_name']
+            
+            if is_me:
+                html += f"""
+                <div style="margin-bottom: 8px; text-align: right;">
+                    <div style="display: inline-block; background: rgba(108, 99, 255, 0.2); border-right: 3px solid #6C63FF; padding: 8px 10px; border-radius: 12px 0 12px 12px; text-align: left; max-width: 90%;">
+                        <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
+                        <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
+                    </div>
+                </div>
+                """
+            else:
+                html += f"""
+                <div style="margin-bottom: 8px; text-align: left;">
+                    <div style="display: inline-block; background: rgba(26, 29, 41, 0.8); border-left: 3px solid #a78bfa; padding: 8px 10px; border-radius: 0 12px 12px 12px; text-align: left; max-width: 90%; border: 1px solid rgba(108, 99, 255, 0.15); border-left-width: 3px;">
+                        <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
+                        <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
+                    </div>
+                </div>
+                """
+        html += '</div>'
+        st.markdown(html, unsafe_allow_html=True)
+
+
+@st.fragment(run_every="5s")
+def render_inbox_messages(user_id):
+    inbox_msgs = get_messages_for_user(user_id)
+    if not inbox_msgs:
+        st.caption("Your inbox is empty.")
+    else:
+        unread_ids = []
+        html = '<div style="max-height: 300px; overflow-y: auto;">'
+        for msg in inbox_msgs:
+            if not msg["is_read"]:
+                unread_ids.append(msg["id"])
+                
+            msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%b %d, %H:%M")
+            unread_badge = '<span style="background:#EF4444;color:white;font-size:9px;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span>' if not msg['is_read'] else ''
+            
+            html += f"""
+            <div style="font-size: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <div style="margin-bottom:2px;">
+                    <span style="font-weight: 600; color: #a78bfa;">👤 {msg['sender_name']}</span>
+                    {unread_badge}
+                </div>
+                <div style="font-size: 10px; color: #6B7280; margin-bottom: 4px;">{msg_time}</div>
+                <div style="color: #E5E7EB; white-space: pre-wrap;">{msg['content']}</div>
+            </div>
+            """
+        html += '</div>'
+        st.markdown(html, unsafe_allow_html=True)
+        
+        if unread_ids:
+            mark_messages_read(unread_ids)
+
+
 def render_messaging_sidebar():
     """Render expandable messaging sections in the sidebar."""
     user_id = st.session_state.get("user_id")
@@ -31,70 +97,11 @@ def render_messaging_sidebar():
                     send_message(user_id, 0, new_msg.strip())
                     st.rerun()
 
-        group_msgs = get_group_messages(15)
-        if not group_msgs:
-            st.caption("No messages yet. Say hi!")
-        else:
-            html = '<div style="max-height: 250px; overflow-y: auto;">'
-            for msg in group_msgs:
-                is_me = (msg['sender_id'] == user_id)
-                msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
-                sender_name = "You" if is_me else msg['sender_name']
-                
-                if is_me:
-                    html += f"""
-                    <div style="margin-bottom: 8px; text-align: right;">
-                        <div style="display: inline-block; background: rgba(108, 99, 255, 0.2); border-right: 3px solid #6C63FF; padding: 8px 10px; border-radius: 12px 0 12px 12px; text-align: left; max-width: 90%;">
-                            <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
-                            <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
-                        </div>
-                    </div>
-                    """
-                else:
-                    html += f"""
-                    <div style="margin-bottom: 8px; text-align: left;">
-                        <div style="display: inline-block; background: rgba(26, 29, 41, 0.8); border-left: 3px solid #a78bfa; padding: 8px 10px; border-radius: 0 12px 12px 12px; text-align: left; max-width: 90%; border: 1px solid rgba(108, 99, 255, 0.15); border-left-width: 3px;">
-                            <div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>
-                            <div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg['content']}</div>
-                        </div>
-                    </div>
-                    """
-            html += '</div>'
-            st.markdown(html, unsafe_allow_html=True)
-
+        render_global_chat_messages(user_id)
 
     # 2. DIRECT INBOX
     with st.sidebar.expander("📥 Direct Inbox", expanded=False):
-        inbox_msgs = get_messages_for_user(user_id)
-        if not inbox_msgs:
-            st.caption("Your inbox is empty.")
-        else:
-            unread_ids = []
-            html = '<div style="max-height: 300px; overflow-y: auto;">'
-            for msg in inbox_msgs:
-                if not msg["is_read"]:
-                    unread_ids.append(msg["id"])
-                    
-                msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%b %d, %H:%M")
-                unread_badge = '<span style="background:#EF4444;color:white;font-size:9px;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span>' if not msg['is_read'] else ''
-                
-                html += f"""
-                <div style="font-size: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <div style="margin-bottom:2px;">
-                        <span style="font-weight: 600; color: #a78bfa;">👤 {msg['sender_name']}</span>
-                        {unread_badge}
-                    </div>
-                    <div style="font-size: 10px; color: #6B7280; margin-bottom: 4px;">{msg_time}</div>
-                    <div style="color: #E5E7EB; white-space: pre-wrap;">{msg['content']}</div>
-                </div>
-                """
-            html += '</div>'
-            st.markdown(html, unsafe_allow_html=True)
-            
-            # Mark all as read when viewed
-            if unread_ids:
-                mark_messages_read(unread_ids)
-
+        render_inbox_messages(user_id)
 
     # 3. COMPOSE
     with st.sidebar.expander("✏️ Compose DM", expanded=False):
