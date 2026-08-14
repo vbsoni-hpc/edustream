@@ -10,6 +10,10 @@ echo "Starting Streamlit frontend..."
 streamlit run app.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --server.enableCORS false --server.enableXsrfProtection false &
 STREAMLIT_PID=$!
 
+# Replace the port in nginx.conf
+export PORT=${PORT:-10000}
+sed -i "s/\${PORT}/$PORT/g" /app/nginx.conf
+
 # Start Nginx in the foreground
-echo "Starting Nginx..."
+echo "Starting Nginx on port $PORT..."
 nginx -g 'daemon off;' -c /app/nginx.conf
