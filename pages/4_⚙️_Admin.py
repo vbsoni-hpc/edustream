@@ -75,7 +75,9 @@ with col_sync:
     if st.button("🔄 Sync Now", use_container_width=True, type="primary"):
         with st.spinner("Syncing from Telegram... This may take a moment."):
             try:
-                resp = requests.post(f"{API_BASE_URL}/api/sync", timeout=120)
+                # Use internal FastAPI URL directly for Python requests
+                INTERNAL_API_URL = "http://127.0.0.1:8000"
+                resp = requests.post(f"{INTERNAL_API_URL}/api/sync", timeout=120)
                 if resp.status_code == 200:
                     data = resp.json()
                     st.success(f"✅ Synced **{data.get('synced', 0)}** videos from Telegram!")
