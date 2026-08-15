@@ -3,9 +3,8 @@ Bootstrap script — runs before servers start on Render.
 
 Sequence:
   1. Init DB tables
-  2. Restore backup from Telegram Saved Messages (users, structure, progress)
-  3. Sync videos from Telegram channel
-  4. Re-apply module assignments from backup
+  2. Restore backup from Telegram Saved Messages (users, structure, progress, videos)
+  3. Sync videos from Telegram channel (updates video metadata)
 """
 import asyncio
 import logging
@@ -25,7 +24,7 @@ async def run_bootstrap():
     """Full bootstrap sequence."""
     from backend.models import init_db
     from backend.telegram_client import get_client, sync_channel, disconnect
-    from backend.telegram_backup import restore_from_telegram, apply_pending_assignments
+    from backend.telegram_backup import restore_from_telegram
     from config import DEFAULT_SEGMENT_ICONS
 
     # Step 1: Init database
@@ -63,11 +62,6 @@ async def run_bootstrap():
         logger.info(f"  ✔ Synced {synced} videos")
     except Exception as e:
         logger.error(f"  ✘ Sync failed: {e}")
-
-    # Step 4: Re-apply module assignments from backup
-    logger.info("Step 4/4: Applying module assignments from backup...")
-    apply_pending_assignments()
-    logger.info("  ✔ Done")
 
     # Disconnect Telegram client (servers will create their own)
     await disconnect()

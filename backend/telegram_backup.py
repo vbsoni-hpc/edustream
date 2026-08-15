@@ -85,7 +85,7 @@ def _build_backup_data() -> dict:
             }
 
     return {
-        "version": 1,
+        "version": 2,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "segments": [
             {
@@ -105,6 +105,19 @@ def _build_backup_data() -> dict:
             for m in modules
         ],
         "video_assignments": video_assignments,
+        "videos": [
+            {
+                "telegram_msg_id": v["telegram_msg_id"],
+                "title": v["title"],
+                "segment_name": v.get("segment_name", "General"),
+                "module_name": v.get("module_name"),
+                "duration_sec": v.get("duration_sec", 0),
+                "file_size": v.get("file_size", 0),
+                "mime_type": v.get("mime_type", "video/mp4"),
+                "caption": v.get("caption", ""),
+            }
+            for v in videos
+        ],
         "users": [
             {
                 "username": u["username"],
@@ -351,14 +364,95 @@ def _restore_data(data: dict):
                 )
         conn.commit()
 
-        # 5. Store video_assignments for later use by bootstrap
-        # (Videos don't exist yet — they'll be created by sync_channel)
-        global _pending_video_assignments
-        _pending_video_assignments = data.get("video_assignments", {})
+        # 5. Restore videos (with segment and module assignments)
+        video_assignments = data.get("video_assignments", {})
+        restored_videos = 0
+        for vid in data.get("videos", []):
+            msg_id = vid["telegram_msg_id"]
 
-        # 6. Store progress for later use (after videos are synced)
-        global _pending_progress
-        _pending_progress = data.get("progress", [])
+            # Find segment
+            seg_name = vid.get("segment_name", "General")
+            seg_row = conn.execute(
+                "SELECT id FROM segments WHERE name = ?", (seg_name,)
+            ).fetchone()
+            seg_id = seg_row["id"] if seg_row else None
+
+            # Find module (from video record or assignments dict)
+            mod_name = vid.get("module_name")
+            if not mod_name:
+                assignment = video_assignments.get(str(msg_id), {})
+                mod_name = assignment.get("module_name")
+
+            mod_id = None
+            if mod_name and seg_id:
+                mod_row = conn.execute(
+                    "SELECT m.id FROM modules m WHERE m.name = ? AND m.segment_id = ?",
+                    (mod_name, seg_id),
+                ).fetchone()
+                if mod_row:
+                    mod_id = mod_row["id"]
+                else:
+                    # Try without segment constraint
+                    mod_row = conn.execute(
+                        "SELECT id FROM modules WHERE name = ?", (mod_name,)
+                    ).fetchone()
+                    if mod_row:
+                        mod_id = mod_row["id"]
+
+            # Upsert video
+            existing = conn.execute(
+                "SELECT id FROM videos WHERE telegram_msg_id = ?", (msg_id,)
+            ).fetchone()
+            if existing:
+                conn.execute("""
+                    UPDATE videos SET title=?, segment_id=?, module_id=?, duration_sec=?,
+                           file_size=?, mime_type=?, caption=?
+                    WHERE telegram_msg_id=?
+                """, (vid["title"], seg_id, mod_id, vid.get("duration_sec", 0),
+                      vid.get("file_size", 0), vid.get("mime_type", "video/mp4"),
+                      vid.get("caption", ""), msg_id))
+            else:
+                conn.execute("""
+                    INSERT INTO videos (telegram_msg_id, title, segment_id, module_id,
+                                       duration_sec, file_size, mime_type, caption)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (msg_id, vid["title"], seg_id, mod_id,
+                      vid.get("duration_sec", 0), vid.get("file_size", 0),
+                      vid.get("mime_type", "video/mp4"), vid.get("caption", "")))
+            restored_videos += 1
+        conn.commit()
+
+        # 6. Restore progress (videos now exist in DB)
+        restored_progress = 0
+        for p in data.get("progress", []):
+            user = conn.execute(
+                "SELECT id FROM users WHERE username = ?", (p["username"],)
+            ).fetchone()
+            if not user:
+                continue
+            video = conn.execute(
+                "SELECT id FROM videos WHERE telegram_msg_id = ?", (p["telegram_msg_id"],)
+            ).fetchone()
+            if not video:
+                continue
+            existing = conn.execute(
+                "SELECT id FROM progress WHERE user_id = ? AND video_id = ?",
+                (user["id"], video["id"]),
+            ).fetchone()
+            if not existing:
+                conn.execute("""
+                    INSERT INTO progress (user_id, video_id, completed, watch_seconds,
+                                         last_position, last_watched_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    user["id"], video["id"],
+                    p.get("completed", 0),
+                    p.get("watch_seconds", 0),
+                    p.get("last_position", 0),
+                    p.get("last_watched_at", time.time()),
+                ))
+                restored_progress += 1
+        conn.commit()
 
         # 7. Restore messages (users already exist at this point)
         _restore_messages(conn, data.get("messages", []))
@@ -368,6 +462,8 @@ def _restore_data(data: dict):
             f"Restored: {len(data.get('users', []))} users, "
             f"{len(data.get('segments', []))} segments, "
             f"{len(data.get('modules', []))} modules, "
+            f"{restored_videos} videos, "
+            f"{restored_progress} progress records, "
             f"{len(data.get('notices', []))} notices"
         )
 
@@ -408,109 +504,6 @@ def _restore_messages(conn, messages: list):
                 "INSERT INTO messages (sender_id, recipient_id, content, is_read, created_at) VALUES (?, ?, ?, ?, ?)",
                 (sender["id"], recipient_id, msg["content"], msg.get("is_read", 0), msg.get("created_at", time.time())),
             )
-
-
-# ── Pending data (set by restore, consumed by bootstrap) ──
-_pending_video_assignments: dict = {}
-_pending_progress: list = []
-
-
-def apply_pending_assignments():
-    """
-    After videos are synced, apply the saved module assignments.
-    Matches videos by telegram_msg_id.
-    """
-    global _pending_video_assignments, _pending_progress
-
-    if not _pending_video_assignments and not _pending_progress:
-        return
-
-    import sqlite3
-    from config import DB_PATH
-
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-
-    try:
-        # Apply module assignments
-        assigned = 0
-        for msg_id_str, assignment in _pending_video_assignments.items():
-            msg_id = int(msg_id_str)
-            module_name = assignment["module_name"]
-            segment_name = assignment.get("segment_name", "General")
-
-            # Find the video
-            video = conn.execute(
-                "SELECT id FROM videos WHERE telegram_msg_id = ?", (msg_id,)
-            ).fetchone()
-            if not video:
-                continue
-
-            # Find the module
-            module = conn.execute("""
-                SELECT m.id FROM modules m
-                JOIN segments s ON m.segment_id = s.id
-                WHERE m.name = ? AND s.name = ?
-            """, (module_name, segment_name)).fetchone()
-
-            if not module:
-                module = conn.execute(
-                    "SELECT id FROM modules WHERE name = ?", (module_name,)
-                ).fetchone()
-
-            if module:
-                conn.execute(
-                    "UPDATE videos SET module_id = ? WHERE id = ?",
-                    (module["id"], video["id"]),
-                )
-                assigned += 1
-
-        conn.commit()
-        logger.info(f"Applied {assigned} video-module assignments")
-
-        # Apply progress
-        restored_progress = 0
-        for p in _pending_progress:
-            user = conn.execute(
-                "SELECT id FROM users WHERE username = ?", (p["username"],)
-            ).fetchone()
-            if not user:
-                continue
-
-            video = conn.execute(
-                "SELECT id FROM videos WHERE telegram_msg_id = ?", (p["telegram_msg_id"],)
-            ).fetchone()
-            if not video:
-                continue
-
-            existing = conn.execute(
-                "SELECT id FROM progress WHERE user_id = ? AND video_id = ?",
-                (user["id"], video["id"]),
-            ).fetchone()
-
-            if not existing:
-                conn.execute("""
-                    INSERT INTO progress (user_id, video_id, completed, watch_seconds, last_position, last_watched_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    user["id"], video["id"],
-                    p.get("completed", 0),
-                    p.get("watch_seconds", 0),
-                    p.get("last_position", 0),
-                    p.get("last_watched_at", time.time()),
-                ))
-                restored_progress += 1
-
-        conn.commit()
-        logger.info(f"Restored {restored_progress} progress records")
-
-    except Exception as e:
-        logger.error(f"Error applying pending assignments: {e}")
-    finally:
-        conn.close()
-        _pending_video_assignments = {}
-        _pending_progress = []
-
 
 # ═══════════════════════════════════════════════════════════
 #  Debounced auto-save
