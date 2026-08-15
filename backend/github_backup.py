@@ -108,6 +108,20 @@ def _build_backup_data() -> dict:
     """).fetchall()
     user_video_access = [{"username": r["username"], "telegram_msg_id": r["telegram_msg_id"]} for r in uva]
     
+    # Calculate Leaderboard
+    leaderboard_rows = conn.execute("""
+        SELECT 
+            u.username,
+            u.display_name,
+            COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as total_completed,
+            COALESCE(SUM(p.watch_seconds), 0) as total_watch_seconds
+        FROM users u
+        LEFT JOIN progress p ON p.user_id = u.id
+        GROUP BY u.id
+        ORDER BY total_completed DESC, total_watch_seconds DESC
+    """).fetchall()
+    leaderboard = [dict(r) for r in leaderboard_rows]
+
     conn.close()
 
     # Build video assignments: telegram_msg_id → {module_name, segment_name}
@@ -203,6 +217,15 @@ def _build_backup_data() -> dict:
             }
             for m in messages
         ],
+        "leaderboard": [
+            {
+                "username": l["username"],
+                "display_name": l["display_name"],
+                "total_completed": l["total_completed"],
+                "total_watch_seconds": l["total_watch_seconds"],
+            }
+            for l in leaderboard
+        ]
     }
 
 
