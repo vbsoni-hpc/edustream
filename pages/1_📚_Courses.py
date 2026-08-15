@@ -226,42 +226,49 @@ def fmt_duration(sec: float) -> str:
 # ── Helper: render a list of videos ──────────────────────
 def render_video_list(video_list, prefix=""):
     """Render a list of video cards with play buttons."""
-    for idx, video in enumerate(video_list, 1):
-        prog = get_video_progress(user_id, video["id"])
-        is_complete = prog and prog["completed"]
-        watch_sec = prog["watch_seconds"] if prog else 0
+    # Use a scrollable container for long lists
+    if len(video_list) > 4:
+        container = st.container(height=450, border=False)
+    else:
+        container = st.container()
+        
+    with container:
+        for idx, video in enumerate(video_list, 1):
+            prog = get_video_progress(user_id, video["id"])
+            is_complete = prog and prog["completed"]
+            watch_sec = prog["watch_seconds"] if prog else 0
 
-        index_class = "video-index completed" if is_complete else "video-index"
-        index_text = "✓" if is_complete else str(idx)
-        badge_class = "watch-badge done" if is_complete else "watch-badge"
-        badge_text = "✅ Done" if is_complete else f"▶ {fmt_duration(watch_sec)} watched"
+            index_class = "video-index completed" if is_complete else "video-index"
+            index_text = "✓" if is_complete else str(idx)
+            badge_class = "watch-badge done" if is_complete else "watch-badge"
+            badge_text = "✅ Done" if is_complete else f"▶ {fmt_duration(watch_sec)} watched"
 
-        st.markdown(f"""
-        <div class="video-card">
-            <div class="video-left">
-                <div class="{index_class}">{index_text}</div>
-                <div>
-                    <div class="video-title">{video['title']}</div>
-                    <div class="video-meta">Duration: {fmt_duration(video['duration_sec'])}</div>
+            st.markdown(f"""
+            <div class="video-card">
+                <div class="video-left">
+                    <div class="{index_class}">{index_text}</div>
+                    <div>
+                        <div class="video-title">{video['title']}</div>
+                        <div class="video-meta">Duration: {fmt_duration(video['duration_sec'])}</div>
+                    </div>
+                </div>
+                <div class="video-right">
+                    <span class="{badge_class}">{badge_text}</span>
                 </div>
             </div>
-            <div class="video-right">
-                <span class="{badge_class}">{badge_text}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        # Play button — Streamlit native for navigation
-        col1, col2 = st.columns([6, 1])
-        with col2:
-            if st.button("▶️ Play", key=f"play_{prefix}{video['id']}", use_container_width=True):
-                st.session_state["current_video_id"] = video["id"]
-                st.switch_page("pages/2_🎬_Player.py")
+            # Play button — Streamlit native for navigation
+            col1, col2 = st.columns([6, 1])
+            with col2:
+                if st.button("▶️ Play", key=f"play_{prefix}{video['id']}", use_container_width=True):
+                    st.session_state["current_video_id"] = video["id"]
+                    st.switch_page("pages/2_🎬_Player.py")
 
 
 # ── Render segments & videos ─────────────────────────────
 for seg in segments_to_show:
-    videos = get_videos_by_segment(seg["id"])
+    videos = get_videos_by_segment(seg["id"], user_id)
     videos = _sort_videos(videos, sort_mode)
     if not videos:
         continue

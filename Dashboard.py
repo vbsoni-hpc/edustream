@@ -336,10 +336,10 @@ def show_auth_page():
     """, unsafe_allow_html=True)
     
     # Use columns to center the content and reduce width
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1, 1.6, 1])
     
     with col2:
-        st.markdown('<div class="login-title">🎓 EduStream - </div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-title" style="font-size: 26px; line-height: 1.3; white-space: normal;">🎓 EduStream - Study with your Friends </div>', unsafe_allow_html=True)
         st.markdown('<div class="login-subtitle"> Your premium course platform </div>', unsafe_allow_html=True)
         
         tab_login, tab_register = st.tabs(["Sign In", "Register"])

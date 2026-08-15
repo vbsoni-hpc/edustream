@@ -40,6 +40,9 @@ from backend.models import (
     set_user_segment_access,
     get_user_module_access,
     set_user_module_access,
+    get_user_video_access,
+    set_user_video_access,
+    update_video_restricted,
 )
 
 init_db()
@@ -315,6 +318,36 @@ else:
 
 st.markdown("---")
 
+# ═══════════════════════════════════════════════════════════
+#  Video Access Control
+# ═══════════════════════════════════════════════════════════
+st.markdown("### 🔒 Video Access Control")
+st.caption("Grant specific users access to restricted videos.")
+
+videos = get_all_videos()
+restricted_videos = [v for v in videos if v.get("is_restricted")]
+if restricted_videos:
+    users = get_all_users_admin()
+    user_opts = {u['id']: f"{u['display_name']} (@{u['username']})" for u in users}
+    
+    sel_vid = st.selectbox("Select Restricted Video", options=restricted_videos, format_func=lambda v: f"{v['title']} ({v.get('segment_name', '?')})")
+    if sel_vid:
+        current_vid_access = get_user_video_access(sel_vid['id'])
+        selected_vid_users = st.multiselect(
+            "Users with access", 
+            options=list(user_opts.keys()), 
+            default=current_vid_access,
+            format_func=lambda uid: user_opts[uid],
+            key="vid_access_select"
+        )
+        if st.button("Save Access", key="save_vid_access"):
+            set_user_video_access(sel_vid['id'], selected_vid_users)
+            st.success(f"Access updated for {sel_vid['title']}")
+else:
+    st.info("No restricted videos found.")
+
+st.markdown("---")
+
 
 # ═══════════════════════════════════════════════════════════
 #  Manage Modules (within segments)
@@ -422,11 +455,18 @@ else:
 
     # Checkboxes for selection
     selected_ids = []
-    for v in filtered_videos:
-        mod_label = f"📂 {v['module_name']}" if v.get("module_name") else "⬜ Unassigned"
-        label = f"**{v['title']}**  ·  {mod_label}"
-        if st.checkbox(label, key=f"sel_{v['id']}"):
-            selected_ids.append(v["id"])
+    
+    if len(filtered_videos) > 10:
+        assign_container = st.container(height=400, border=True)
+    else:
+        assign_container = st.container()
+
+    with assign_container:
+        for v in filtered_videos:
+            mod_label = f"📂 {v['module_name']}" if v.get("module_name") else "⬜ Unassigned"
+            label = f"**{v['title']}**  ·  {mod_label}"
+            if st.checkbox(label, key=f"sel_{v['id']}"):
+                selected_ids.append(v["id"])
 
     if selected_ids:
         st.markdown(f"**{len(selected_ids)} videos selected**")
@@ -461,23 +501,36 @@ if not videos:
 else:
     st.markdown(f"**{len(videos)}** videos in the catalog:")
 
-    for v in videos:
-        seg_display = f"{v.get('segment_icon', '📁')} {v.get('segment_name', 'Unassigned')}"
-        mod_display = f" → {v.get('module_icon', '📂')} {v.get('module_name')}" if v.get("module_name") else ""
-        dur_min = v["duration_sec"] / 60 if v["duration_sec"] else 0
-        size_mb = v["file_size"] / (1024 * 1024) if v["file_size"] else 0
+    if len(videos) > 6:
+        catalog_container = st.container(height=600, border=False)
+    else:
+        catalog_container = st.container()
 
-        with st.expander(f"#{v['telegram_msg_id']} — {v['title']}"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"**Segment:** {seg_display}")
-                st.markdown(f"**Module:** {mod_display or '—'}")
-                st.markdown(f"**Duration:** {dur_min:.1f} min")
-            with col2:
-                st.markdown(f"**Size:** {size_mb:.1f} MB")
-                st.markdown(f"**Telegram Msg ID:** {v['telegram_msg_id']}")
-                if v.get("caption"):
-                    st.markdown(f"**Caption:** {v['caption'][:200]}")
+    with catalog_container:
+        for v in videos:
+            seg_display = f"{v.get('segment_icon', '📁')} {v.get('segment_name', 'Unassigned')}"
+            mod_display = f" → {v.get('module_icon', '📂')} {v.get('module_name')}" if v.get("module_name") else ""
+            dur_min = v["duration_sec"] / 60 if v["duration_sec"] else 0
+            size_mb = v["file_size"] / (1024 * 1024) if v["file_size"] else 0
+    
+            with st.expander(f"#{v['telegram_msg_id']} — {v['title']}"):
+                col1, col2, col3 = st.columns([2, 2, 1])
+                with col1:
+                    st.markdown(f"**Segment:** {seg_display}")
+                    st.markdown(f"**Module:** {mod_display or '—'}")
+                    st.markdown(f"**Duration:** {dur_min:.1f} min")
+                with col2:
+                    st.markdown(f"**Size:** {size_mb:.1f} MB")
+                    st.markdown(f"**Telegram Msg ID:** {v['telegram_msg_id']}")
+                    if v.get("caption"):
+                        st.markdown(f"**Caption:** {v['caption'][:200]}")
+                with col3:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    vid_restr = st.checkbox("Restricted", value=bool(v.get("is_restricted", 0)), key=f"vid_restr_{v['id']}")
+                    if st.button("💾 Save", key=f"vid_save_{v['id']}"):
+                        update_video_restricted(v["id"], vid_restr)
+                        st.success("Saved!")
+                        st.rerun()
 
 st.markdown("---")
 

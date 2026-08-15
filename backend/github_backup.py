@@ -81,6 +81,33 @@ def _build_backup_data() -> dict:
         LEFT JOIN users r ON m.recipient_id = r.id
     """).fetchall()
     messages = [dict(r) for r in message_rows]
+
+    # Fetch access control mapping
+    usa = conn.execute("""
+        SELECT u.username, s.name as segment_name
+        FROM user_segment_access a
+        JOIN users u ON a.user_id = u.id
+        JOIN segments s ON a.segment_id = s.id
+    """).fetchall()
+    user_segment_access = [{"username": r["username"], "segment_name": r["segment_name"]} for r in usa]
+    
+    uma = conn.execute("""
+        SELECT u.username, m.name as module_name, s.name as segment_name
+        FROM user_module_access a
+        JOIN users u ON a.user_id = u.id
+        JOIN modules m ON a.module_id = m.id
+        LEFT JOIN segments s ON m.segment_id = s.id
+    """).fetchall()
+    user_module_access = [{"username": r["username"], "module_name": r["module_name"], "segment_name": r["segment_name"]} for r in uma]
+
+    uva = conn.execute("""
+        SELECT u.username, v.telegram_msg_id
+        FROM user_video_access a
+        JOIN users u ON a.user_id = u.id
+        JOIN videos v ON a.video_id = v.id
+    """).fetchall()
+    user_video_access = [{"username": r["username"], "telegram_msg_id": r["telegram_msg_id"]} for r in uva]
+    
     conn.close()
 
     # Build video assignments: telegram_msg_id → {module_name, segment_name}
@@ -100,6 +127,8 @@ def _build_backup_data() -> dict:
                 "name": s["name"],
                 "icon": s["icon"],
                 "sort_order": s["sort_order"],
+                "description": s.get("description", ""),
+                "is_restricted": s.get("is_restricted", 0),
             }
             for s in segments
         ],
@@ -110,6 +139,7 @@ def _build_backup_data() -> dict:
                 "icon": m["icon"],
                 "sort_order": m["sort_order"],
                 "segment_name": m.get("segment_name"),
+                "is_restricted": m.get("is_restricted", 0),
             }
             for m in modules
         ],
@@ -124,6 +154,8 @@ def _build_backup_data() -> dict:
                 "file_size": v.get("file_size", 0),
                 "mime_type": v.get("mime_type", "video/mp4"),
                 "caption": v.get("caption", ""),
+                "youtube_id": v.get("youtube_id", ""),
+                "is_restricted": v.get("is_restricted", 0),
             }
             for v in videos
         ],
@@ -133,11 +165,15 @@ def _build_backup_data() -> dict:
                 "username": u["username"],
                 "display_name": u["display_name"],
                 "created_at": u.get("created_at", 0),
-                "password_hash": _export_user_passwords().get(u["username"], "")
+                "password_hash": _export_user_passwords().get(u["username"], ""),
+                "is_admin": u.get("is_admin", 0),
             }
             for u in users
         ],
         "user_passwords": _export_user_passwords(),
+        "user_segment_access": user_segment_access,
+        "user_module_access": user_module_access,
+        "user_video_access": user_video_access,
         "progress": [
             {
                 "username": p["username"],
@@ -299,13 +335,13 @@ def _restore_data(data: dict):
                     continue
                 if "id" in user:
                     conn.execute(
-                        "INSERT INTO users (id, username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
-                        (user["id"], username, password_hash, display_name, created_at),
+                        "INSERT INTO users (id, username, password_hash, display_name, created_at, is_admin) VALUES (?, ?, ?, ?, ?, ?)",
+                        (user["id"], username, password_hash, display_name, created_at, user.get("is_admin", 0)),
                     )
                 else:
                     conn.execute(
-                        "INSERT INTO users (username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?)",
-                        (username, password_hash, display_name, created_at),
+                        "INSERT INTO users (username, password_hash, display_name, created_at, is_admin) VALUES (?, ?, ?, ?, ?)",
+                        (username, password_hash, display_name, created_at, user.get("is_admin", 0)),
                     )
         conn.commit()
 
@@ -316,13 +352,13 @@ def _restore_data(data: dict):
             ).fetchone()
             if existing:
                 conn.execute(
-                    "UPDATE segments SET icon = ?, sort_order = ? WHERE name = ?",
-                    (seg["icon"], seg.get("sort_order", 0), seg["name"]),
+                    "UPDATE segments SET icon = ?, sort_order = ?, description = ?, is_restricted = ? WHERE name = ?",
+                    (seg["icon"], seg.get("sort_order", 0), seg.get("description", ""), seg.get("is_restricted", 0), seg["name"]),
                 )
             else:
                 conn.execute(
-                    "INSERT INTO segments (name, icon, sort_order) VALUES (?, ?, ?)",
-                    (seg["name"], seg["icon"], seg.get("sort_order", 0)),
+                    "INSERT INTO segments (name, icon, sort_order, description, is_restricted) VALUES (?, ?, ?, ?, ?)",
+                    (seg["name"], seg["icon"], seg.get("sort_order", 0), seg.get("description", ""), seg.get("is_restricted", 0)),
                 )
         conn.commit()
 
@@ -355,19 +391,19 @@ def _restore_data(data: dict):
 
             if existing:
                 conn.execute(
-                    "UPDATE modules SET name = ?, icon = ?, sort_order = ?, segment_id = ? WHERE id = ?",
-                    (mod["name"], mod["icon"], mod.get("sort_order", 0), seg_id, existing["id"]),
+                    "UPDATE modules SET name = ?, icon = ?, sort_order = ?, segment_id = ?, is_restricted = ? WHERE id = ?",
+                    (mod["name"], mod["icon"], mod.get("sort_order", 0), seg_id, mod.get("is_restricted", 0), existing["id"]),
                 )
             else:
                 if "id" in mod:
                     conn.execute(
-                        "INSERT INTO modules (id, name, segment_id, icon, sort_order) VALUES (?, ?, ?, ?, ?)",
-                        (mod["id"], mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0)),
+                        "INSERT INTO modules (id, name, segment_id, icon, sort_order, is_restricted) VALUES (?, ?, ?, ?, ?, ?)",
+                        (mod["id"], mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0), mod.get("is_restricted", 0)),
                     )
                 else:
                     conn.execute(
-                        "INSERT INTO modules (name, segment_id, icon, sort_order) VALUES (?, ?, ?, ?)",
-                        (mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0)),
+                        "INSERT INTO modules (name, segment_id, icon, sort_order, is_restricted) VALUES (?, ?, ?, ?, ?)",
+                        (mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0), mod.get("is_restricted", 0)),
                     )
         conn.commit()
 
@@ -437,19 +473,20 @@ def _restore_data(data: dict):
             if existing:
                 conn.execute("""
                     UPDATE videos SET title=?, segment_id=?, module_id=?, duration_sec=?,
-                           file_size=?, mime_type=?, caption=?
+                           file_size=?, mime_type=?, caption=?, youtube_id=?, is_restricted=?
                     WHERE telegram_msg_id=?
                 """, (vid["title"], seg_id, mod_id, vid.get("duration_sec", 0),
                       vid.get("file_size", 0), vid.get("mime_type", "video/mp4"),
-                      vid.get("caption", ""), msg_id))
+                      vid.get("caption", ""), vid.get("youtube_id", ""), vid.get("is_restricted", 0), msg_id))
             else:
                 conn.execute("""
                     INSERT INTO videos (telegram_msg_id, title, segment_id, module_id,
-                                       duration_sec, file_size, mime_type, caption)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                       duration_sec, file_size, mime_type, caption, youtube_id, is_restricted)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (msg_id, vid["title"], seg_id, mod_id,
                       vid.get("duration_sec", 0), vid.get("file_size", 0),
-                      vid.get("mime_type", "video/mp4"), vid.get("caption", "")))
+                      vid.get("mime_type", "video/mp4"), vid.get("caption", ""),
+                      vid.get("youtube_id", ""), vid.get("is_restricted", 0)))
             restored_videos += 1
         conn.commit()
 
@@ -487,6 +524,31 @@ def _restore_data(data: dict):
 
         # 7. Restore messages (users already exist at this point)
         _restore_messages(conn, data.get("messages", []))
+        conn.commit()
+
+        # 8. Restore access control mappings
+        conn.execute("DELETE FROM user_segment_access")
+        for usa in data.get("user_segment_access", []):
+            u_row = conn.execute("SELECT id FROM users WHERE username = ?", (usa["username"],)).fetchone()
+            s_row = conn.execute("SELECT id FROM segments WHERE name = ?", (usa["segment_name"],)).fetchone()
+            if u_row and s_row:
+                conn.execute("INSERT OR IGNORE INTO user_segment_access (user_id, segment_id) VALUES (?, ?)", (u_row["id"], s_row["id"]))
+                
+        conn.execute("DELETE FROM user_module_access")
+        for uma in data.get("user_module_access", []):
+            u_row = conn.execute("SELECT id FROM users WHERE username = ?", (uma["username"],)).fetchone()
+            s_row = conn.execute("SELECT id FROM segments WHERE name = ?", (uma.get("segment_name") or "Uncategorized",)).fetchone()
+            if u_row and s_row:
+                m_row = conn.execute("SELECT id FROM modules WHERE name = ? AND segment_id = ?", (uma["module_name"], s_row["id"])).fetchone()
+                if m_row:
+                    conn.execute("INSERT OR IGNORE INTO user_module_access (user_id, module_id) VALUES (?, ?)", (u_row["id"], m_row["id"]))
+
+        conn.execute("DELETE FROM user_video_access")
+        for uva in data.get("user_video_access", []):
+            u_row = conn.execute("SELECT id FROM users WHERE username = ?", (uva["username"],)).fetchone()
+            v_row = conn.execute("SELECT id FROM videos WHERE telegram_msg_id = ?", (uva["telegram_msg_id"],)).fetchone()
+            if u_row and v_row:
+                conn.execute("INSERT OR IGNORE INTO user_video_access (user_id, video_id) VALUES (?, ?)", (u_row["id"], v_row["id"]))
         conn.commit()
 
         logger.info(

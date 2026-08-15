@@ -120,7 +120,9 @@ _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN youtube_id TEXT UNIQUE",
     "CREATE TABLE IF NOT EXISTS user_segment_access (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))",
     "CREATE TABLE IF NOT EXISTS user_module_access (user_id INTEGER NOT NULL REFERENCES users(id), module_id INTEGER NOT NULL REFERENCES modules(id), PRIMARY KEY (user_id, module_id))",
-    "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'"
+    "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'",
+    "ALTER TABLE videos ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
+    "CREATE TABLE IF NOT EXISTS user_video_access (user_id INTEGER NOT NULL REFERENCES users(id), video_id INTEGER NOT NULL REFERENCES videos(id), PRIMARY KEY (user_id, video_id))"
 ]
 
 
@@ -478,31 +480,77 @@ def get_all_videos() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def get_videos_by_segment(segment_id: int) -> list[dict]:
+def get_videos_by_segment(segment_id: int, user_id: int = None) -> list[dict]:
     with _conn() as c:
-        rows = c.execute("""
-            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
-                   m.name as module_name, m.icon as module_icon
-            FROM videos v
-            LEFT JOIN segments s ON v.segment_id = s.id
-            LEFT JOIN modules m ON v.module_id = m.id
-            WHERE v.segment_id = ?
-            ORDER BY v.telegram_msg_id
-        """, (segment_id,)).fetchall()
+        if user_id is None:
+            rows = c.execute("""
+                SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                       m.name as module_name, m.icon as module_icon
+                FROM videos v
+                LEFT JOIN segments s ON v.segment_id = s.id
+                LEFT JOIN modules m ON v.module_id = m.id
+                WHERE v.segment_id = ?
+                ORDER BY v.telegram_msg_id
+            """, (segment_id,)).fetchall()
+        else:
+            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            if is_admin:
+                rows = c.execute("""
+                    SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                           m.name as module_name, m.icon as module_icon
+                    FROM videos v
+                    LEFT JOIN segments s ON v.segment_id = s.id
+                    LEFT JOIN modules m ON v.module_id = m.id
+                    WHERE v.segment_id = ?
+                    ORDER BY v.telegram_msg_id
+                """, (segment_id,)).fetchall()
+            else:
+                rows = c.execute("""
+                    SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                           m.name as module_name, m.icon as module_icon
+                    FROM videos v
+                    LEFT JOIN segments s ON v.segment_id = s.id
+                    LEFT JOIN modules m ON v.module_id = m.id
+                    WHERE v.segment_id = ? AND (v.is_restricted = 0 OR v.id IN (SELECT video_id FROM user_video_access WHERE user_id = ?))
+                    ORDER BY v.telegram_msg_id
+                """, (segment_id, user_id)).fetchall()
         return [dict(r) for r in rows]
 
 
-def get_videos_by_module(module_id: int) -> list[dict]:
+def get_videos_by_module(module_id: int, user_id: int = None) -> list[dict]:
     with _conn() as c:
-        rows = c.execute("""
-            SELECT v.*, s.name as segment_name, s.icon as segment_icon,
-                   m.name as module_name, m.icon as module_icon
-            FROM videos v
-            LEFT JOIN segments s ON v.segment_id = s.id
-            LEFT JOIN modules m ON v.module_id = m.id
-            WHERE v.module_id = ?
-            ORDER BY v.telegram_msg_id
-        """, (module_id,)).fetchall()
+        if user_id is None:
+            rows = c.execute("""
+                SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                       m.name as module_name, m.icon as module_icon
+                FROM videos v
+                LEFT JOIN segments s ON v.segment_id = s.id
+                LEFT JOIN modules m ON v.module_id = m.id
+                WHERE v.module_id = ?
+                ORDER BY v.telegram_msg_id
+            """, (module_id,)).fetchall()
+        else:
+            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            if is_admin:
+                rows = c.execute("""
+                    SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                           m.name as module_name, m.icon as module_icon
+                    FROM videos v
+                    LEFT JOIN segments s ON v.segment_id = s.id
+                    LEFT JOIN modules m ON v.module_id = m.id
+                    WHERE v.module_id = ?
+                    ORDER BY v.telegram_msg_id
+                """, (module_id,)).fetchall()
+            else:
+                rows = c.execute("""
+                    SELECT v.*, s.name as segment_name, s.icon as segment_icon,
+                           m.name as module_name, m.icon as module_icon
+                    FROM videos v
+                    LEFT JOIN segments s ON v.segment_id = s.id
+                    LEFT JOIN modules m ON v.module_id = m.id
+                    WHERE v.module_id = ? AND (v.is_restricted = 0 OR v.id IN (SELECT video_id FROM user_video_access WHERE user_id = ?))
+                    ORDER BY v.telegram_msg_id
+                """, (module_id, user_id)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -591,6 +639,24 @@ def set_user_module_access(module_id: int, user_ids: list[int]):
         for uid in user_ids:
             c.execute("INSERT INTO user_module_access (user_id, module_id) VALUES (?, ?)", (uid, module_id))
         c.commit()
+
+def get_user_video_access(video_id: int) -> list[int]:
+    with _conn() as c:
+        rows = c.execute("SELECT user_id FROM user_video_access WHERE video_id = ?", (video_id,)).fetchall()
+        return [r["user_id"] for r in rows]
+
+def set_user_video_access(video_id: int, user_ids: list[int]):
+    with _conn() as c:
+        c.execute("DELETE FROM user_video_access WHERE video_id = ?", (video_id,))
+        for uid in user_ids:
+            c.execute("INSERT INTO user_video_access (user_id, video_id) VALUES (?, ?)", (uid, video_id))
+        c.commit()
+
+def update_video_restricted(video_id: int, is_restricted: bool):
+    with _conn() as c:
+        c.execute("UPDATE videos SET is_restricted = ? WHERE id = ?", (int(is_restricted), video_id))
+        c.commit()
+        _trigger_backup()
 
 def is_user_admin(user_id: int) -> bool:
     with _conn() as c:
