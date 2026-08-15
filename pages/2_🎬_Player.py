@@ -193,7 +193,7 @@ with st.container():
                     with st.spinner("AI is thinking..."):
                         try:
                             # Build context
-                            messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions."}]
+                            messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles"}]
                             messages.extend(video_chat_history[-5:])
                             
                             response = g4f.ChatCompletion.create(
