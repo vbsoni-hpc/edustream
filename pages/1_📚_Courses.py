@@ -154,9 +154,9 @@ st.markdown("""
 
 
 # ── Sidebar filter ────────────────────────────────────────
-segments = get_all_segments()
+segments = get_all_segments(user_id)
 if not segments:
-    st.info("No courses synced yet. Go to **⚙️ Admin** to sync your Telegram channel.")
+    st.info("No courses synced or accessible yet.")
     st.stop()
 
 segment_names = ["All Segments"] + [f"{s['icon']} {s['name']}" for s in segments]

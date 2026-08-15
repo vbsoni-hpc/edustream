@@ -164,6 +164,7 @@ render_video_player(
     api_base=API_BASE_URL,
     last_position=last_position,
     title=video["title"],
+    youtube_id=video.get("youtube_id"),
 )
 
 # ── Ask AI ────────────────────────────────────────────────

@@ -36,6 +36,8 @@ from backend.models import (
     update_user_admin,
     delete_user_admin,
     delete_all_messages,
+    get_user_segment_access,
+    set_user_segment_access,
 )
 
 init_db()
@@ -220,10 +222,15 @@ else:
             with col3:
                 new_order = st.number_input("Sort Order", value=seg["sort_order"], key=f"seg_order_{seg['id']}")
 
-            new_desc = st.text_input("Description", value=seg.get("description", ""), key=f"seg_desc_{seg['id']}")
+            col4, col5 = st.columns([0.8, 0.2])
+            with col4:
+                new_desc = st.text_input("Description", value=seg.get("description", ""), key=f"seg_desc_{seg['id']}")
+            with col5:
+                st.markdown("<br>", unsafe_allow_html=True)
+                new_restr = st.checkbox("Restricted", value=bool(seg.get("is_restricted", 0)), key=f"seg_restr_{seg['id']}")
 
             if st.button("💾 Save", key=f"seg_save_{seg['id']}"):
-                update_segment(seg["id"], name=new_name, icon=new_icon, description=new_desc, sort_order=int(new_order))
+                update_segment(seg["id"], name=new_name, icon=new_icon, description=new_desc, sort_order=int(new_order), is_restricted=new_restr)
                 st.success(f"Updated segment: {new_icon} {new_name}")
                 st.rerun()
 
@@ -244,6 +251,34 @@ if st.button("➕ Add Segment"):
         st.rerun()
     else:
         st.warning("Please enter a segment name.")
+
+st.markdown("---")
+
+# ═══════════════════════════════════════════════════════════
+#  Segment Access Control
+# ═══════════════════════════════════════════════════════════
+st.markdown("### 🔒 Segment Access Control")
+st.caption("Grant specific users access to restricted segments.")
+
+restricted_segments = [s for s in segments if s.get("is_restricted")]
+if restricted_segments:
+    users = get_all_users_admin()
+    user_opts = {u['id']: f"{u['display_name']} (@{u['username']})" for u in users}
+    
+    sel_seg = st.selectbox("Select Restricted Segment", options=restricted_segments, format_func=lambda s: f"{s['icon']} {s['name']}")
+    if sel_seg:
+        current_access = get_user_segment_access(sel_seg['id'])
+        selected_users = st.multiselect(
+            "Users with access", 
+            options=list(user_opts.keys()), 
+            default=current_access,
+            format_func=lambda uid: user_opts[uid]
+        )
+        if st.button("Save Access", key="save_access"):
+            set_user_segment_access(sel_seg['id'], selected_users)
+            st.success(f"Access updated for {sel_seg['name']}")
+else:
+    st.info("No restricted segments found.")
 
 st.markdown("---")
 

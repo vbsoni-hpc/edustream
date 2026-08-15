@@ -22,8 +22,10 @@ from backend.models import (
     get_online_users,
     get_leaderboard,
     get_latest_notices,
+    is_user_admin,
 )
 from backend.auth import hash_password, verify_password, create_access_token
+from backend.youtube import process_youtube_playlist
 # ── Initialise DB on first run ────────────────────────────
 init_db()
 
@@ -336,8 +338,8 @@ def show_auth_page():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     
     with col2:
-        st.markdown('<div class="login-title">🎓 EduStream</div>', unsafe_allow_html=True)
-        st.markdown('<div class="login-subtitle"> Your premium course platform</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-title">🎓 EduStream - </div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-subtitle"> Your premium course platform </div>', unsafe_allow_html=True)
         
         tab_login, tab_register = st.tabs(["Sign In", "Register"])
     
@@ -390,12 +392,40 @@ def show_auth_page():
 
 
 # ═══════════════════════════════════════════════════════════
+#  YouTube Import Dialog
+# ═══════════════════════════════════════════════════════════
+
+@st.dialog("Upload a Course")
+def upload_course_dialog():
+    st.write("Import a course using a YouTube Playlist URL.")
+    url = st.text_input("YouTube Playlist URL", placeholder="https://youtube.com/playlist?... ")
+    icon = st.text_input("Segment Icon (emoji)", value="▶️")
+    desc = st.text_area("Segment Description", placeholder="Enter optional description")
+    
+    if st.button("Import"):
+        if url:
+            with st.spinner("Fetching YouTube data..."):
+                try:
+                    seg_id = process_youtube_playlist(url, icon, desc)
+                    if seg_id is not None:
+                        st.success("Successfully imported course!")
+                        st.rerun()
+                    else:
+                        st.error("No valid playlist found.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.warning("Please enter a URL")
+
+
+# ═══════════════════════════════════════════════════════════
 #  Home Dashboard
 # ═══════════════════════════════════════════════════════════
 
 def show_home():
     user_id = st.session_state["user_id"]
     display_name = st.session_state.get("display_name", "Student")
+    is_admin = is_user_admin(user_id)
 
     # ── Sidebar ──
     with st.sidebar:
@@ -438,6 +468,16 @@ def show_home():
     # ── Quick Stats ──
     pct = stats['completion_pct']
     hours = stats['total_watch_hours']
+
+    col1, col2 = st.columns([0.8, 0.2])
+    with col1:
+        st.markdown(f"**Overall Progress:** {pct:.1f}% ({stats['completed_videos']}/{stats['total_videos']} videos) • **Watch Time:** {hours:.1f}h")
+    with col2:
+        if st.button("➕ Upload a Course", use_container_width=True):
+            upload_course_dialog()
+
+    st.progress(pct / 100)
+    st.markdown("<br>", unsafe_allow_html=True)
     
 
     # ── Segment Cards ──
@@ -500,13 +540,11 @@ def show_home():
             rank_text = ["🥇", "🥈", "🥉"][i] if i < 3 else f"#{i+1}"
             hrs = row['total_watch_sec'] / 3600
             
-            html += f"""
-            <div class="leaderboard-row">
-                <div class="lb-rank {rank_class}">{rank_text}</div>
-                <div class="lb-name">{row['display_name']}</div>
-                <div class="lb-score">{hrs:.1f}h</div>
-            </div>
-            """
+            html += f"""<div class="leaderboard-row">
+    <div class="lb-rank {rank_class}">{rank_text}</div>
+    <div class="lb-name">{row['display_name']}</div>
+    <div class="lb-score">{hrs:.1f}h</div>
+</div>"""
         html += "</div>"
         st.markdown(html, unsafe_allow_html=True)
 

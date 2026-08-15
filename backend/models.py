@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash   TEXT    NOT NULL,
     display_name    TEXT    NOT NULL DEFAULT '',
     created_at      REAL    NOT NULL DEFAULT (strftime('%s','now')),
-    last_active     REAL    NOT NULL DEFAULT 0
+    last_active     REAL    NOT NULL DEFAULT 0,
+    is_admin        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -44,7 +45,8 @@ CREATE TABLE IF NOT EXISTS segments (
     name       TEXT    UNIQUE NOT NULL,
     icon       TEXT    NOT NULL DEFAULT '📁',
     description TEXT   NOT NULL DEFAULT '',
-    sort_order INTEGER NOT NULL DEFAULT 0
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_restricted INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS modules (
@@ -53,12 +55,14 @@ CREATE TABLE IF NOT EXISTS modules (
     segment_id INTEGER NOT NULL REFERENCES segments(id),
     icon       TEXT    NOT NULL DEFAULT '📂',
     sort_order INTEGER NOT NULL DEFAULT 0,
+    is_restricted INTEGER NOT NULL DEFAULT 0,
     UNIQUE(name, segment_id)
 );
 
 CREATE TABLE IF NOT EXISTS videos (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_msg_id INTEGER UNIQUE NOT NULL,
+    youtube_id      TEXT    UNIQUE,
     title           TEXT    NOT NULL DEFAULT 'Untitled',
     segment_id      INTEGER REFERENCES segments(id),
     module_id       INTEGER REFERENCES modules(id),
@@ -92,6 +96,16 @@ CREATE TABLE IF NOT EXISTS notices (
     content      TEXT    NOT NULL,
     created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
 );
+CREATE TABLE IF NOT EXISTS user_segment_access (
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    segment_id   INTEGER NOT NULL REFERENCES segments(id),
+    PRIMARY KEY (user_id, segment_id)
+);
+CREATE TABLE IF NOT EXISTS user_module_access (
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    module_id    INTEGER NOT NULL REFERENCES modules(id),
+    PRIMARY KEY (user_id, module_id)
+);
 """
 
 # Migration: add module_id to existing videos table if missing
@@ -99,7 +113,14 @@ _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
     "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
-    "ALTER TABLE segments ADD COLUMN description TEXT NOT NULL DEFAULT ''"
+    "ALTER TABLE segments ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE segments ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE modules ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE videos ADD COLUMN youtube_id TEXT UNIQUE",
+    "CREATE TABLE IF NOT EXISTS user_segment_access (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))",
+    "CREATE TABLE IF NOT EXISTS user_module_access (user_id INTEGER NOT NULL REFERENCES users(id), module_id INTEGER NOT NULL REFERENCES modules(id), PRIMARY KEY (user_id, module_id))",
+    "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'"
 ]
 
 
@@ -171,12 +192,12 @@ def get_all_users() -> list[dict]:
 
 def get_all_users_admin() -> list[dict]:
     with _conn() as c:
-        rows = c.execute("SELECT id, username, display_name, created_at, last_active FROM users ORDER BY id").fetchall()
+        rows = c.execute("SELECT id, username, display_name, created_at, last_active, is_admin FROM users ORDER BY id").fetchall()
         return [dict(r) for r in rows]
 
-def update_user_admin(user_id: int, username: str, display_name: str):
+def update_user_admin(user_id: int, username: str, display_name: str, is_admin: bool = False):
     with _conn() as c:
-        c.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (username, display_name, user_id))
+        c.execute("UPDATE users SET username=?, display_name=?, is_admin=? WHERE id=?", (username, display_name, int(is_admin), user_id))
         c.commit()
         _trigger_backup()
 
@@ -295,9 +316,21 @@ def delete_notice(notice_id: int):
 
 # ── Segments ──────────────────────────────────────────────
 
-def get_all_segments() -> list[dict]:
+def get_all_segments(user_id: int = None) -> list[dict]:
     with _conn() as c:
-        rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
+        if user_id is None:
+            rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
+        else:
+            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            if is_admin:
+                rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
+            else:
+                rows = c.execute("""
+                    SELECT * FROM segments 
+                    WHERE is_restricted = 0 
+                    OR id IN (SELECT segment_id FROM user_segment_access WHERE user_id = ?)
+                    ORDER BY sort_order, name
+                """, (user_id,)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -314,7 +347,7 @@ def get_or_create_segment(name: str, icon: str = "📁", description: str = "") 
         return cur.lastrowid
 
 
-def update_segment(segment_id: int, name: str = None, icon: str = None, description: str = None, sort_order: int = None):
+def update_segment(segment_id: int, name: str = None, icon: str = None, description: str = None, sort_order: int = None, is_restricted: bool = None):
     with _conn() as c:
         if name is not None:
             c.execute("UPDATE segments SET name = ? WHERE id = ?", (name, segment_id))
@@ -324,6 +357,8 @@ def update_segment(segment_id: int, name: str = None, icon: str = None, descript
             c.execute("UPDATE segments SET description = ? WHERE id = ?", (description, segment_id))
         if sort_order is not None:
             c.execute("UPDATE segments SET sort_order = ? WHERE id = ?", (sort_order, segment_id))
+        if is_restricted is not None:
+            c.execute("UPDATE segments SET is_restricted = ? WHERE id = ?", (int(is_restricted), segment_id))
         c.commit()
         _trigger_backup()
 
@@ -489,6 +524,50 @@ def upsert_video(telegram_msg_id: int, title: str, segment_id: int,
         c.commit()
         return cur.lastrowid
 
+import zlib
+
+def upsert_youtube_video(youtube_id: str, title: str, segment_id: int, duration_sec: float = 0) -> int:
+    with _conn() as c:
+        row = c.execute("SELECT id FROM videos WHERE youtube_id = ?", (youtube_id,)).fetchone()
+        if row:
+            c.execute("""
+                UPDATE videos SET title=?, duration_sec=?, synced_at=?
+                WHERE youtube_id=?
+            """, (title, duration_sec, time.time(), youtube_id))
+            c.commit()
+            return row["id"]
+        
+        # generate a unique negative integer for telegram_msg_id since it's required and unique
+        fake_msg_id = -(zlib.crc32(youtube_id.encode('utf-8')) & 0xffffffff)
+        while c.execute("SELECT id FROM videos WHERE telegram_msg_id = ?", (fake_msg_id,)).fetchone():
+            fake_msg_id -= 1
+
+        cur = c.execute("""
+            INSERT INTO videos (telegram_msg_id, youtube_id, title, segment_id, duration_sec, mime_type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (fake_msg_id, youtube_id, title, segment_id, duration_sec, 'video/youtube'))
+        c.commit()
+        return cur.lastrowid
+
+# ── Access Control ────────────────────────────────────────
+
+def get_user_segment_access(segment_id: int) -> list[int]:
+    with _conn() as c:
+        rows = c.execute("SELECT user_id FROM user_segment_access WHERE segment_id = ?", (segment_id,)).fetchall()
+        return [r["user_id"] for r in rows]
+
+def set_user_segment_access(segment_id: int, user_ids: list[int]):
+    with _conn() as c:
+        c.execute("DELETE FROM user_segment_access WHERE segment_id = ?", (segment_id,))
+        for uid in user_ids:
+            c.execute("INSERT INTO user_segment_access (user_id, segment_id) VALUES (?, ?)", (uid, segment_id))
+        c.commit()
+
+def is_user_admin(user_id: int) -> bool:
+    with _conn() as c:
+        row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+        return bool(row["is_admin"]) if row else False
+
 
 # ── Progress ──────────────────────────────────────────────
 
@@ -589,18 +668,39 @@ def get_dashboard_stats(user_id: int) -> dict:
 def get_segment_stats(user_id: int) -> list[dict]:
     """Per-segment completion and watch time."""
     with _conn() as c:
-        rows = c.execute("""
-            SELECT 
-                s.id, s.name, s.icon, s.description,
-                COUNT(v.id) as total_videos,
-                COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
-                COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
-            FROM segments s
-            LEFT JOIN videos v ON v.segment_id = s.id
-            LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
-            GROUP BY s.id
-            ORDER BY s.sort_order, s.name
-        """, (user_id,)).fetchall()
+        is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+        
+        if is_admin:
+            query = """
+                SELECT 
+                    s.id, s.name, s.icon, s.description, s.is_restricted,
+                    COUNT(v.id) as total_videos,
+                    COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
+                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+                FROM segments s
+                LEFT JOIN videos v ON v.segment_id = s.id
+                LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+                GROUP BY s.id
+                ORDER BY s.sort_order, s.name
+            """
+            params = (user_id,)
+        else:
+            query = """
+                SELECT 
+                    s.id, s.name, s.icon, s.description, s.is_restricted,
+                    COUNT(v.id) as total_videos,
+                    COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
+                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+                FROM segments s
+                LEFT JOIN videos v ON v.segment_id = s.id
+                LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+                WHERE s.is_restricted = 0 OR s.id IN (SELECT segment_id FROM user_segment_access WHERE user_id = ?)
+                GROUP BY s.id
+                ORDER BY s.sort_order, s.name
+            """
+            params = (user_id, user_id)
+            
+        rows = c.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
 
