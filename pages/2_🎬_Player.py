@@ -170,20 +170,20 @@ render_video_player(
 if "ai_chat_history" not in st.session_state:
     st.session_state["ai_chat_history"] = {}
 
-video_chat_history = st.session_state["ai_chat_history"].setdefault(video_id, [])
+@st.fragment
+def render_ask_ai_section(video_id, video):
+    video_chat_history = st.session_state["ai_chat_history"].setdefault(video_id, [])
 
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("###### 🤖 Ask AI (Beta)")
-with st.container():
-    if not video_chat_history:
-        st.caption("Got a question about this lecture? Ask the AI!")
-    else:
-        for msg in video_chat_history:
-            if msg["role"] == "user":
-                st.markdown(f"**👤 You:** {msg['content']}")
-            else:
-                st.markdown(f"**🤖 AI:** {msg['content']}")
-            
+    with st.container(height=350):
+        if not video_chat_history:
+            st.caption("Got a question about this lecture? Ask the AI!")
+        else:
+            for msg in video_chat_history:
+                if msg["role"] == "user":
+                    st.markdown(f"**👤 You:** {msg['content']}")
+                else:
+                    st.markdown(f"**🤖 AI:** {msg['content']}")
+                
     with st.form("ask_ai_form", clear_on_submit=True):
         ai_q = st.text_input("Ask something...", placeholder="e.g. Summarize this video's topic", label_visibility="collapsed")
         if st.form_submit_button("Ask 🚀", use_container_width=True):
@@ -207,7 +207,12 @@ with st.container():
                         except Exception as e:
                             st.error(f"Failed to get response: {e}")
                             video_chat_history.pop() # remove the user message if it failed
-                st.rerun()
+                try:
+                    st.rerun(scope="fragment")
+                except TypeError:
+                    st.rerun()
+
+render_ask_ai_section(video_id, video)
 
 
 # ── Manual mark complete ──────────────────────────────────

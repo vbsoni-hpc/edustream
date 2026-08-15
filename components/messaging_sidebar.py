@@ -18,7 +18,7 @@ def render_global_chat_messages(user_id):
     if not group_msgs:
         st.caption("No messages yet. Say hi!")
     else:
-        html = '<div style="max-height: 250px; overflow-y: auto;">'
+        html = ''
         for msg in group_msgs:
             is_me = (msg['sender_id'] == user_id)
             msg_time = datetime.fromtimestamp(msg["created_at"]).strftime("%H:%M")
@@ -36,8 +36,8 @@ def render_global_chat_messages(user_id):
                 html += f'<div style="font-size: 10px; color: #a78bfa; margin-bottom: 2px; font-weight: 600;">{sender_name} <span style="font-weight: 400; color:#6B7280;margin-left:4px;">{msg_time}</span></div>'
                 html += f'<div style="font-size: 12px; color: #FAFAFA; line-height: 1.3; word-wrap: break-word;">{msg["content"]}</div>'
                 html += f'</div></div>'
-        html += '</div>'
-        st.markdown(html, unsafe_allow_html=True)
+        with st.container(height=300):
+            st.markdown(html, unsafe_allow_html=True)
 
 
 @st.fragment(run_every="5s")
@@ -47,7 +47,7 @@ def render_inbox_messages(user_id):
         st.caption("Your inbox is empty.")
     else:
         unread_ids = []
-        html = '<div style="max-height: 300px; overflow-y: auto;">'
+        html = ''
         for msg in inbox_msgs:
             if not msg["is_read"]:
                 unread_ids.append(msg["id"])
@@ -62,8 +62,8 @@ def render_inbox_messages(user_id):
             html += f'<div style="font-size: 10px; color: #6B7280; margin-bottom: 4px;">{msg_time}</div>'
             html += f'<div style="color: #E5E7EB; white-space: pre-wrap;">{msg["content"]}</div>'
             html += f'</div>'
-        html += '</div>'
-        st.markdown(html, unsafe_allow_html=True)
+        with st.container(height=300):
+            st.markdown(html, unsafe_allow_html=True)
         
         if unread_ids:
             mark_messages_read(unread_ids)
