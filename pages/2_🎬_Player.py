@@ -9,6 +9,12 @@ import streamlit as st
 import sys
 from pathlib import Path
 
+try:
+    import g4f
+except ImportError:
+    g4f = None
+
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import API_BASE_URL
@@ -159,6 +165,47 @@ render_video_player(
     last_position=last_position,
     title=video["title"],
 )
+
+# ── Ask AI ────────────────────────────────────────────────
+if "ai_chat_history" not in st.session_state:
+    st.session_state["ai_chat_history"] = {}
+
+video_chat_history = st.session_state["ai_chat_history"].setdefault(video_id, [])
+
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("🤖 Ask AI (Beta)", expanded=False):
+    if not video_chat_history:
+        st.caption("Got a question about this lecture? Ask the AI!")
+    else:
+        for msg in video_chat_history:
+            if msg["role"] == "user":
+                st.markdown(f"**👤 You:** {msg['content']}")
+            else:
+                st.markdown(f"**🤖 AI:** {msg['content']}")
+            
+    with st.form("ask_ai_form", clear_on_submit=True):
+        ai_q = st.text_input("Ask something...", placeholder="e.g. Summarize this video's topic", label_visibility="collapsed")
+        if st.form_submit_button("Ask 🚀", use_container_width=True):
+            if ai_q.strip():
+                video_chat_history.append({"role": "user", "content": ai_q.strip()})
+                if g4f:
+                    with st.spinner("AI is thinking..."):
+                        try:
+                            # Build context
+                            messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions."}]
+                            messages.extend(video_chat_history[-5:])
+                            
+                            response = g4f.ChatCompletion.create(
+                                model="gpt-3.5-turbo",
+                                messages=messages,
+                            )
+                            video_chat_history.append({"role": "assistant", "content": response})
+                        except Exception as e:
+                            st.error(f"Failed to get response: {e}")
+                            video_chat_history.pop() # remove the user message if it failed
+                else:
+                    st.error("AI module not loaded. Please ensure g4f is installed.")
+                st.rerun()
 
 
 # ── Manual mark complete ──────────────────────────────────
