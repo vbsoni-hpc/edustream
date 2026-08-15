@@ -387,8 +387,12 @@ def delete_module(module_id: int):
 def move_videos_to_module(video_ids: list[int], module_id: int):
     """Assign a list of videos to a module."""
     with _conn() as c:
+        mod_row = c.execute("SELECT segment_id FROM modules WHERE id = ?", (module_id,)).fetchone()
+        if not mod_row:
+            return
+        seg_id = mod_row["segment_id"]
         for vid in video_ids:
-            c.execute("UPDATE videos SET module_id = ? WHERE id = ?", (module_id, vid))
+            c.execute("UPDATE videos SET module_id = ?, segment_id = ? WHERE id = ?", (module_id, seg_id, vid))
         c.commit()
         _trigger_backup()
 

@@ -321,22 +321,20 @@ def _restore_data(data: dict):
 
         # 3. Restore modules
         for mod in data.get("modules", []):
-            seg_name = mod.get("segment_name")
-            seg_id = None
-            if seg_name:
+            seg_name = mod.get("segment_name") or "Uncategorized"
+            seg_row = conn.execute(
+                "SELECT id FROM segments WHERE name = ?", (seg_name,)
+            ).fetchone()
+            if not seg_row:
+                conn.execute(
+                    "INSERT INTO segments (name, icon) VALUES (?, ?)",
+                    (seg_name, "📁"),
+                )
+                conn.commit()
                 seg_row = conn.execute(
                     "SELECT id FROM segments WHERE name = ?", (seg_name,)
                 ).fetchone()
-                if not seg_row:
-                    conn.execute(
-                        "INSERT INTO segments (name, icon) VALUES (?, ?)",
-                        (seg_name, "📁"),
-                    )
-                    conn.commit()
-                    seg_row = conn.execute(
-                        "SELECT id FROM segments WHERE name = ?", (seg_name,)
-                    ).fetchone()
-                seg_id = seg_row["id"]
+            seg_id = seg_row["id"]
 
             existing = conn.execute(
                 "SELECT id FROM modules WHERE name = ? AND segment_id = ?",
@@ -374,13 +372,20 @@ def _restore_data(data: dict):
             msg_id = vid["telegram_msg_id"]
 
             # Find segment
-            seg_name = vid.get("segment_name")
-            seg_id = None
-            if seg_name:
+            seg_name = vid.get("segment_name") or "Uncategorized"
+            seg_row = conn.execute(
+                "SELECT id FROM segments WHERE name = ?", (seg_name,)
+            ).fetchone()
+            if not seg_row:
+                conn.execute(
+                    "INSERT INTO segments (name, icon) VALUES (?, ?)",
+                    (seg_name, "📁"),
+                )
+                conn.commit()
                 seg_row = conn.execute(
                     "SELECT id FROM segments WHERE name = ?", (seg_name,)
                 ).fetchone()
-                seg_id = seg_row["id"] if seg_row else None
+            seg_id = seg_row["id"]
 
             # Find module (from video record or assignments dict)
             mod_name = vid.get("module_name")
@@ -389,11 +394,13 @@ def _restore_data(data: dict):
                 mod_name = assignment.get("module_name")
 
             mod_id = None
-            if mod_name and seg_id:
-                mod_row = conn.execute(
-                    "SELECT m.id FROM modules m WHERE m.name = ? AND m.segment_id = ?",
-                    (mod_name, seg_id),
-                ).fetchone()
+            if mod_name:
+                mod_row = None
+                if seg_id:
+                    mod_row = conn.execute(
+                        "SELECT m.id FROM modules m WHERE m.name = ? AND m.segment_id = ?",
+                        (mod_name, seg_id),
+                    ).fetchone()
                 if mod_row:
                     mod_id = mod_row["id"]
                 else:

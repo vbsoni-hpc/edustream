@@ -403,8 +403,8 @@ def show_home():
     st.markdown("#### 📚 Courses")
     segment_stats = get_segment_stats(user_id)
     
-    # Filter out 'General' segment from being displayed on the dashboard
-    segment_stats = [seg for seg in segment_stats if seg['name'] != 'General']
+    # Filter out 'General' and 'Uncategorized' segments from being displayed on the dashboard
+    segment_stats = [seg for seg in segment_stats if seg['name'] not in ('General', 'Uncategorized')]
 
     if not segment_stats:
         st.info("No courses synced yet. Go to the **⚙️ Admin** page to sync your Telegram channel.")
