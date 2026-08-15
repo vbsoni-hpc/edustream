@@ -502,7 +502,7 @@ def _restore_data(data: dict):
                     WHERE telegram_msg_id=?
                 """, (vid["title"], seg_id, mod_id, vid.get("duration_sec", 0),
                       vid.get("file_size", 0), vid.get("mime_type", "video/mp4"),
-                      vid.get("caption", ""), vid.get("youtube_id", ""), vid.get("is_restricted", 0), msg_id))
+                      vid.get("caption", ""), vid.get("youtube_id") or None, vid.get("is_restricted", 0), msg_id))
             else:
                 conn.execute("""
                     INSERT INTO videos (telegram_msg_id, title, segment_id, module_id,
@@ -511,7 +511,7 @@ def _restore_data(data: dict):
                 """, (msg_id, vid["title"], seg_id, mod_id,
                       vid.get("duration_sec", 0), vid.get("file_size", 0),
                       vid.get("mime_type", "video/mp4"), vid.get("caption", ""),
-                      vid.get("youtube_id", ""), vid.get("is_restricted", 0)))
+                      vid.get("youtube_id") or None, vid.get("is_restricted", 0)))
             restored_videos += 1
         conn.commit()
 
