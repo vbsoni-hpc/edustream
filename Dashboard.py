@@ -23,6 +23,7 @@ from backend.models import (
     get_leaderboard,
     get_latest_notices,
     is_user_admin,
+    get_last_viewed_segment_stats,
 )
 from backend.auth import hash_password, verify_password, create_access_token
 from backend.youtube import process_youtube_playlist
@@ -466,17 +467,22 @@ def show_home():
         st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Quick Stats ──
-    pct = stats['completion_pct']
-    hours = stats['total_watch_hours']
+    last_seg_stats = get_last_viewed_segment_stats(user_id)
 
     col1, col2 = st.columns([0.8, 0.2])
     with col1:
-        st.markdown(f"**Overall Progress:** {pct:.1f}% ({stats['completed_videos']}/{stats['total_videos']} videos) • **Watch Time:** {hours:.1f}h")
+        if last_seg_stats:
+            pct = (last_seg_stats['completed_videos'] / last_seg_stats['total_videos'] * 100) if last_seg_stats['total_videos'] > 0 else 0
+            hours = last_seg_stats['watch_seconds'] / 3600
+            st.markdown(f"**Last Viewed Course:** {last_seg_stats['icon']} {last_seg_stats['name']} • **Progress:** {pct:.1f}% ({last_seg_stats['completed_videos']}/{last_seg_stats['total_videos']} videos) • **Watch Time:** {hours:.1f}h")
+            st.progress(pct / 100)
+        else:
+            st.markdown("**No recent activity.** Start watching a course to track progress!")
+            
     with col2:
         if st.button("➕ Upload a Course", use_container_width=True):
             upload_course_dialog()
 
-    st.progress(pct / 100)
     st.markdown("<br>", unsafe_allow_html=True)
     
 

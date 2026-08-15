@@ -274,46 +274,37 @@ for seg in segments_to_show:
             completed_count += 1
     seg_pct = (completed_count / len(videos) * 100) if videos else 0
 
-    # Segment header
-    st.markdown(f"""
-    <div class="segment-header">
-        <span class="segment-header-icon">{seg['icon']}</span>
-        <span class="segment-header-title">{seg['name']}</span>
-    </div>
-    <div class="segment-progress-text">
-        {completed_count}/{len(videos)} completed · {seg_pct:.0f}% done
-    </div>
-    <div class="progress-outer">
-        <div class="progress-inner" style="width:{seg_pct}%;"></div>
-    </div>
-    """, unsafe_allow_html=True)
+    with st.expander(f"{seg['icon']} {seg['name']} — {completed_count}/{len(videos)} completed · {seg_pct:.0f}% done", expanded=False):
+        st.markdown(f"""
+        <div class="progress-outer">
+            <div class="progress-inner" style="width:{seg_pct}%;"></div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Get modules for this segment
-    seg_modules = get_modules_by_segment(seg["id"])
+        # Get modules for this segment
+        seg_modules = get_modules_by_segment(seg["id"], user_id)
 
-    if seg_modules:
-        # Group videos by module
-        for mod in seg_modules:
-            mod_videos = [v for v in videos if v.get("module_id") == mod["id"]]
-            if not mod_videos:
-                continue
+        if seg_modules:
+            # Group videos by module
+            for mod in seg_modules:
+                mod_videos = [v for v in videos if v.get("module_id") == mod["id"]]
+                if not mod_videos:
+                    continue
 
-            mod_completed = sum(
-                1 for v in mod_videos
-                if (p := get_video_progress(user_id, v["id"])) and p["completed"]
-            )
-            mod_pct = (mod_completed / len(mod_videos) * 100) if mod_videos else 0
+                mod_completed = sum(
+                    1 for v in mod_videos
+                    if (p := get_video_progress(user_id, v["id"])) and p["completed"]
+                )
+                mod_pct = (mod_completed / len(mod_videos) * 100) if mod_videos else 0
 
-            with st.expander(f"{mod['icon']} {mod['name']}  —  {mod_completed}/{len(mod_videos)} done · {mod_pct:.0f}%", expanded=False):
-                render_video_list(mod_videos, prefix=f"m{mod['id']}_")
+                with st.expander(f"{mod['icon']} {mod['name']}  —  {mod_completed}/{len(mod_videos)} done · {mod_pct:.0f}%", expanded=False):
+                    render_video_list(mod_videos, prefix=f"m{mod['id']}_")
 
-        # Show unassigned videos (no module)
-        unassigned = [v for v in videos if not v.get("module_id")]
-        if unassigned:
-            with st.expander(f"📄 Other Lectures  —  {len(unassigned)} videos", expanded=False):
-                render_video_list(unassigned, prefix="unassigned_")
-    else:
-        # No modules — show all videos flat
-        render_video_list(videos)
-
-    st.markdown("---")
+            # Show unassigned videos (no module)
+            unassigned = [v for v in videos if not v.get("module_id")]
+            if unassigned:
+                with st.expander(f"📄 Other Lectures  —  {len(unassigned)} videos", expanded=False):
+                    render_video_list(unassigned, prefix="unassigned_")
+        else:
+            # No modules — show all videos flat
+            render_video_list(videos)

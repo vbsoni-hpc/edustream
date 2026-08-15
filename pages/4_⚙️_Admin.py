@@ -38,6 +38,8 @@ from backend.models import (
     delete_all_messages,
     get_user_segment_access,
     set_user_segment_access,
+    get_user_module_access,
+    set_user_module_access,
 )
 
 init_db()
@@ -284,6 +286,37 @@ st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════
+#  Module Access Control
+# ═══════════════════════════════════════════════════════════
+st.markdown("### 🔒 Module Access Control")
+st.caption("Grant specific users access to restricted modules.")
+
+modules = get_all_modules()
+restricted_modules = [m for m in modules if m.get("is_restricted")]
+if restricted_modules:
+    users = get_all_users_admin()
+    user_opts = {u['id']: f"{u['display_name']} (@{u['username']})" for u in users}
+    
+    sel_mod = st.selectbox("Select Restricted Module", options=restricted_modules, format_func=lambda m: f"{m['icon']} {m['name']} ({m.get('segment_name', '?')})")
+    if sel_mod:
+        current_mod_access = get_user_module_access(sel_mod['id'])
+        selected_mod_users = st.multiselect(
+            "Users with access", 
+            options=list(user_opts.keys()), 
+            default=current_mod_access,
+            format_func=lambda uid: user_opts[uid],
+            key="mod_access_select"
+        )
+        if st.button("Save Access", key="save_mod_access"):
+            set_user_module_access(sel_mod['id'], selected_mod_users)
+            st.success(f"Access updated for {sel_mod['name']}")
+else:
+    st.info("No restricted modules found.")
+
+st.markdown("---")
+
+
+# ═══════════════════════════════════════════════════════════
 #  Manage Modules (within segments)
 # ═══════════════════════════════════════════════════════════
 
@@ -299,18 +332,21 @@ else:
         for mod in modules:
             seg_label = f"{mod.get('segment_icon', '📁')} {mod.get('segment_name', '?')}"
             with st.expander(f"{mod['icon']} {mod['name']}  ·  {seg_label}"):
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
                 with col1:
                     mod_name = st.text_input("Name", value=mod["name"], key=f"mod_name_{mod['id']}")
                 with col2:
                     mod_icon = st.text_input("Icon", value=mod["icon"], key=f"mod_icon_{mod['id']}")
                 with col3:
                     mod_order = st.number_input("Sort Order", value=mod["sort_order"], key=f"mod_order_{mod['id']}")
+                with col4:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    mod_restr = st.checkbox("Restricted", value=bool(mod.get("is_restricted", 0)), key=f"mod_restr_{mod['id']}")
 
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("💾 Save", key=f"mod_save_{mod['id']}"):
-                        update_module(mod["id"], name=mod_name, icon=mod_icon, sort_order=int(mod_order))
+                        update_module(mod["id"], name=mod_name, icon=mod_icon, sort_order=int(mod_order), is_restricted=mod_restr)
                         st.success(f"Updated module: {mod_icon} {mod_name}")
                         st.rerun()
                 with c2:

@@ -376,13 +376,28 @@ def get_all_modules() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def get_modules_by_segment(segment_id: int) -> list[dict]:
+def get_modules_by_segment(segment_id: int, user_id: int = None) -> list[dict]:
     with _conn() as c:
-        rows = c.execute("""
-            SELECT * FROM modules
-            WHERE segment_id = ?
-            ORDER BY sort_order, name
-        """, (segment_id,)).fetchall()
+        if user_id is None:
+            rows = c.execute("""
+                SELECT * FROM modules
+                WHERE segment_id = ?
+                ORDER BY sort_order, name
+            """, (segment_id,)).fetchall()
+        else:
+            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            if is_admin:
+                rows = c.execute("""
+                    SELECT * FROM modules
+                    WHERE segment_id = ?
+                    ORDER BY sort_order, name
+                """, (segment_id,)).fetchall()
+            else:
+                rows = c.execute("""
+                    SELECT * FROM modules
+                    WHERE segment_id = ? AND (is_restricted = 0 OR id IN (SELECT module_id FROM user_module_access WHERE user_id = ?))
+                    ORDER BY sort_order, name
+                """, (segment_id, user_id)).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -403,7 +418,7 @@ def get_or_create_module(name: str, segment_id: int, icon: str = "📂") -> int:
         return cur.lastrowid
 
 
-def update_module(module_id: int, name: str = None, icon: str = None, sort_order: int = None):
+def update_module(module_id: int, name: str = None, icon: str = None, sort_order: int = None, is_restricted: bool = None):
     with _conn() as c:
         if name is not None:
             c.execute("UPDATE modules SET name = ? WHERE id = ?", (name, module_id))
@@ -411,6 +426,8 @@ def update_module(module_id: int, name: str = None, icon: str = None, sort_order
             c.execute("UPDATE modules SET icon = ? WHERE id = ?", (icon, module_id))
         if sort_order is not None:
             c.execute("UPDATE modules SET sort_order = ? WHERE id = ?", (sort_order, module_id))
+        if is_restricted is not None:
+            c.execute("UPDATE modules SET is_restricted = ? WHERE id = ?", (int(is_restricted), module_id))
         c.commit()
         _trigger_backup()
 
@@ -563,6 +580,18 @@ def set_user_segment_access(segment_id: int, user_ids: list[int]):
             c.execute("INSERT INTO user_segment_access (user_id, segment_id) VALUES (?, ?)", (uid, segment_id))
         c.commit()
 
+def get_user_module_access(module_id: int) -> list[int]:
+    with _conn() as c:
+        rows = c.execute("SELECT user_id FROM user_module_access WHERE module_id = ?", (module_id,)).fetchall()
+        return [r["user_id"] for r in rows]
+
+def set_user_module_access(module_id: int, user_ids: list[int]):
+    with _conn() as c:
+        c.execute("DELETE FROM user_module_access WHERE module_id = ?", (module_id,))
+        for uid in user_ids:
+            c.execute("INSERT INTO user_module_access (user_id, module_id) VALUES (?, ?)", (uid, module_id))
+        c.commit()
+
 def is_user_admin(user_id: int) -> bool:
     with _conn() as c:
         row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
@@ -702,6 +731,38 @@ def get_segment_stats(user_id: int) -> list[dict]:
             
         rows = c.execute(query, params).fetchall()
         return [dict(r) for r in rows]
+
+def get_last_viewed_segment_stats(user_id: int) -> Optional[dict]:
+    """Returns the stats of the last watched segment."""
+    with _conn() as c:
+        row = c.execute("""
+            SELECT v.segment_id 
+            FROM progress p
+            JOIN videos v ON p.video_id = v.id
+            WHERE p.user_id = ?
+            ORDER BY p.last_watched_at DESC
+            LIMIT 1
+        """, (user_id,)).fetchone()
+        
+        if not row:
+            return None
+            
+        segment_id = row["segment_id"]
+        
+        stats = c.execute("""
+            SELECT 
+                s.id, s.name, s.icon,
+                COUNT(v.id) as total_videos,
+                COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
+                COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+            FROM segments s
+            LEFT JOIN videos v ON v.segment_id = s.id
+            LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+            WHERE s.id = ?
+            GROUP BY s.id
+        """, (user_id, segment_id)).fetchone()
+        
+        return dict(stats) if stats else None
 
 
 def get_module_stats(user_id: int) -> list[dict]:
