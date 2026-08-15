@@ -391,7 +391,7 @@ def show_home():
     if notices:
         st.markdown("##### 📢 Important Notices")
         for notice in notices:
-            st.info(notice['content'])
+            st.markdown(notice['content'])
         st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Quick Stats ──
