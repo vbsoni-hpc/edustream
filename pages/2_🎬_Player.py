@@ -196,10 +196,13 @@ with st.container():
                             messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles"}]
                             messages.extend(video_chat_history[-5:])
                             
-                            import requests
-                            api_res = requests.post("https://text.pollinations.ai/openai", json={"messages": messages, "model": "openai"})
-                            api_res.raise_for_status()
-                            answer = api_res.json()["choices"][0]["message"]["content"]
+                            from g4f.client import Client
+                            client = Client()
+                            api_res = client.chat.completions.create(
+                                model="gpt-4",
+                                messages=messages,
+                            )
+                            answer = api_res.choices[0].message.content
                             video_chat_history.append({"role": "assistant", "content": answer})
                         except Exception as e:
                             st.error(f"Failed to get response: {e}")
