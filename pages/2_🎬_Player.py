@@ -197,7 +197,7 @@ with st.container():
                             messages.extend(video_chat_history[-5:])
                             
                             response = g4f.ChatCompletion.create(
-                                model="gpt-3.5-turbo",
+                                model="gpt-4o-mini",
                                 messages=messages,
                             )
                             video_chat_history.append({"role": "assistant", "content": response})

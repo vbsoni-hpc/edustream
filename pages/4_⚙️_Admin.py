@@ -8,6 +8,7 @@ import re
 import streamlit as st
 import requests
 import sys
+import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,6 +32,9 @@ from backend.models import (
     add_notice,
     get_all_notices,
     delete_notice,
+    get_all_users_admin,
+    update_user_admin,
+    delete_user_admin,
 )
 
 init_db()
@@ -97,6 +101,55 @@ else:
                 if st.button("🗑️ Delete", key=f"del_notice_{notice['id']}", use_container_width=True):
                     delete_notice(notice['id'])
                     st.rerun()
+
+st.markdown("---")
+
+# ═══════════════════════════════════════════════════════════
+#  User Management
+# ═══════════════════════════════════════════════════════════
+st.markdown("### 👥 User Management")
+st.markdown("View and edit user records. You can change usernames and display names, or delete users. **Click 'Save User Changes' to apply.**")
+
+users = get_all_users_admin()
+df = pd.DataFrame(users)
+
+if not df.empty:
+    df = df[['id', 'username', 'display_name', 'created_at', 'last_active']]
+    df['created_at'] = pd.to_datetime(df['created_at'], unit='s').dt.strftime('%Y-%m-%d %H:%M')
+    df['last_active'] = pd.to_datetime(df['last_active'], unit='s').dt.strftime('%Y-%m-%d %H:%M')
+    
+    edited_df = st.data_editor(
+        df,
+        disabled=["id", "created_at", "last_active"],
+        num_rows="dynamic",
+        use_container_width=True,
+        key="user_db_editor"
+    )
+
+    if st.button("💾 Save User Changes", type="primary"):
+        changes = st.session_state.get("user_db_editor", {})
+        
+        # Apply edits
+        for row_idx_str, edits in changes.get("edited_rows", {}).items():
+            row_idx = int(row_idx_str)
+            user_id = df.iloc[row_idx]["id"]
+            current = df.iloc[row_idx]
+            new_username = edits.get("username", current["username"])
+            new_display = edits.get("display_name", current["display_name"])
+            update_user_admin(int(user_id), new_username, new_display)
+            
+        # Apply deletions
+        for row_idx in changes.get("deleted_rows", []):
+            user_id = df.iloc[row_idx]["id"]
+            delete_user_admin(int(user_id))
+            
+        if changes.get("added_rows"):
+            st.warning("Cannot add users directly here since passwords are required. Please use the registration page.")
+            
+        st.success("✅ User database updated successfully!")
+        st.rerun()
+else:
+    st.info("No users found.")
 
 st.markdown("---")
 # ── Natural sort helper ──────────────────────────────────

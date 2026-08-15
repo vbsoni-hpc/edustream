@@ -156,6 +156,21 @@ def get_all_users() -> list[dict]:
         rows = c.execute("SELECT id, username, display_name FROM users ORDER BY display_name").fetchall()
         return [dict(r) for r in rows]
 
+def get_all_users_admin() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("SELECT id, username, display_name, created_at, last_active FROM users ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
+def update_user_admin(user_id: int, username: str, display_name: str):
+    with _conn() as c:
+        c.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (username, display_name, user_id))
+        c.commit()
+
+def delete_user_admin(user_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM users WHERE id=?", (user_id,))
+        c.commit()
+
 # ── Messages ──────────────────────────────────────────────
 
 def send_message(sender_id: int, recipient_id: int, content: str):
@@ -163,6 +178,10 @@ def send_message(sender_id: int, recipient_id: int, content: str):
         c.execute(
             "INSERT INTO messages (sender_id, recipient_id, content) VALUES (?, ?, ?)",
             (sender_id, recipient_id, content)
+        )
+        # Auto-delete messages older than 7 days
+        c.execute(
+            "DELETE FROM messages WHERE created_at < (strftime('%s', 'now') - (7 * 24 * 60 * 60))"
         )
         c.commit()
 
