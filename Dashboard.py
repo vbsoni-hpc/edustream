@@ -293,7 +293,13 @@ def logout():
 # ═══════════════════════════════════════════════════════════
 
 def show_auth_page():
-    st.markdown('<div class="login-title">🎓 EduStream</div>', unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] { display: none; }
+            [data-testid="collapsedControl"] { display: none; }
+        </style>
+    """, unsafe_allow_html=True)
+    st.markdown('<div class="login-title">🎓 VStream</div>', unsafe_allow_html=True)
     st.markdown('<div class="login-subtitle">Your premium course platform</div>', unsafe_allow_html=True)
 
     tab_login, tab_register = st.tabs(["Sign In", "Register"])
