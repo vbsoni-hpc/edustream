@@ -432,6 +432,7 @@ def show_home():
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+                st.page_link("pages/1_📚_Courses.py", label=f"Open {seg['name']} Course", icon="📖", use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
