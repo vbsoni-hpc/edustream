@@ -297,61 +297,73 @@ def show_auth_page():
         <style>
             [data-testid="stSidebar"] { display: none; }
             [data-testid="collapsedControl"] { display: none; }
+            
+            /* Center and round the form */
+            [data-testid="stForm"] {
+                border-radius: 30px;
+                background: linear-gradient(135deg, rgba(26, 29, 41, 0.95), rgba(20, 22, 34, 0.9));
+                border: 1px solid rgba(108, 99, 255, 0.2);
+                padding: 40px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            }
         </style>
     """, unsafe_allow_html=True)
-    st.markdown('<div class="login-title">🎓 VStream</div>', unsafe_allow_html=True)
-    st.markdown('<div class="login-subtitle">Your premium course platform</div>', unsafe_allow_html=True)
-
-    tab_login, tab_register = st.tabs(["Sign In", "Register"])
-
-    with tab_login:
-        with st.form("login_form"):
-            username = st.text_input("Username", key="login_user")
-            password = st.text_input("Password", type="password", key="login_pass")
-            submitted = st.form_submit_button("Sign In", use_container_width=True)
-
-            if submitted:
-                if not username or not password:
-                    st.error("Please fill in all fields")
-                else:
-                    user = get_user_by_username(username)
-                    if user and verify_password(password, user["password_hash"]):
-                        token = create_access_token(user["id"], user["username"])
-                        st.session_state["user_id"] = user["id"]
-                        st.session_state["username"] = user["username"]
-                        st.session_state["display_name"] = user["display_name"]
-                        st.session_state["jwt_token"] = token
-                        st.rerun()
+    
+    # Use columns to center the content and reduce width
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    
+    with col2:
+        st.markdown('<div class="login-title">🎓 EduStream</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-subtitle">Your premium course platform</div>', unsafe_allow_html=True)
+        
+        tab_login, tab_register = st.tabs(["Sign In", "Register"])
+    
+        with tab_login:
+            with st.form("login_form"):
+                username = st.text_input("Username", key="login_user")
+                password = st.text_input("Password", type="password", key="login_pass")
+                submitted = st.form_submit_button("Sign In", use_container_width=True)
+    
+                if submitted:
+                    if not username or not password:
+                        st.error("Please fill in all fields")
                     else:
-                        st.error("Invalid username or password")
-
-    with tab_register:
-        with st.form("register_form"):
-            new_user = st.text_input("Choose a username", key="reg_user")
-            new_display = st.text_input("Display name", key="reg_display")
-            new_pass = st.text_input("Password", type="password", key="reg_pass")
-            new_pass2 = st.text_input("Confirm password", type="password", key="reg_pass2")
-            submitted = st.form_submit_button("Create Account", use_container_width=True)
-
-            if submitted:
-                if not new_user or not new_pass:
-                    st.error("Username and password are required")
-                elif new_pass != new_pass2:
-                    st.error("Passwords don't match")
-                elif get_user_by_username(new_user):
-                    st.error("Username already taken")
-                else:
-                    hashed = hash_password(new_pass)
-                    uid = create_user(new_user, hashed, new_display or new_user)
-                    token = create_access_token(uid, new_user)
-                    st.session_state["user_id"] = uid
-                    st.session_state["username"] = new_user
-                    st.session_state["display_name"] = new_display or new_user
-                    st.session_state["jwt_token"] = token
-                    st.success("Account created! Redirecting...")
-                    st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+                        user = get_user_by_username(username)
+                        if user and verify_password(password, user["password_hash"]):
+                            token = create_access_token(user["id"], user["username"])
+                            st.session_state["user_id"] = user["id"]
+                            st.session_state["username"] = user["username"]
+                            st.session_state["display_name"] = user["display_name"]
+                            st.session_state["jwt_token"] = token
+                            st.rerun()
+                        else:
+                            st.error("Invalid username or password")
+    
+        with tab_register:
+            with st.form("register_form"):
+                new_user = st.text_input("Choose a username", key="reg_user")
+                new_display = st.text_input("Display name", key="reg_display")
+                new_pass = st.text_input("Password", type="password", key="reg_pass")
+                new_pass2 = st.text_input("Confirm password", type="password", key="reg_pass2")
+                submitted = st.form_submit_button("Create Account", use_container_width=True)
+    
+                if submitted:
+                    if not new_user or not new_pass:
+                        st.error("Username and password are required")
+                    elif new_pass != new_pass2:
+                        st.error("Passwords don't match")
+                    elif get_user_by_username(new_user):
+                        st.error("Username already taken")
+                    else:
+                        hashed = hash_password(new_pass)
+                        uid = create_user(new_user, hashed, new_display or new_user)
+                        token = create_access_token(uid, new_user)
+                        st.session_state["user_id"] = uid
+                        st.session_state["username"] = new_user
+                        st.session_state["display_name"] = new_display or new_user
+                        st.session_state["jwt_token"] = token
+                        st.success("Account created! Redirecting...")
+                        st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════
