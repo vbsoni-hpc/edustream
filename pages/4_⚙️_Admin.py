@@ -419,8 +419,9 @@ col_backup, col_delete = st.columns(2)
 with col_backup:
     st.markdown("#### ☁️ GitHub Backup")
     st.caption(
-        "Auto backup is disabled. Use the button below to manually force a "
-        "backup of your data (users, progress, course structure) to your private GitHub repo."
+        "Auto backup is enabled (saves automatically 60s after any change). "
+        "Use the button below if you want to manually force an immediate "
+        "backup of your data to your private GitHub repo."
     )
     if st.button("💾 Force Backup Now", use_container_width=True, type="primary"):
         with st.spinner("Backing up to GitHub..."):

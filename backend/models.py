@@ -16,9 +16,13 @@ from config import DB_PATH
 
 
 def _trigger_backup():
-    """Trigger a debounced backup to Telegram. Safe to call frequently."""
-    # Auto-backup disabled per request. Using manual backups only.
-    pass
+    """Trigger a debounced backup to GitHub. Safe to call frequently."""
+    try:
+        from backend.github_backup import schedule_backup
+        schedule_backup()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to schedule auto-backup: {e}")
 
 
 # ═══════════════════════════════════════════════════════════
