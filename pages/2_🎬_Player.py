@@ -189,26 +189,21 @@ with st.container():
         if st.form_submit_button("Ask 🚀", use_container_width=True):
             if ai_q.strip():
                 video_chat_history.append({"role": "user", "content": ai_q.strip()})
-                if g4f:
+                if True:
                     with st.spinner("AI is thinking..."):
                         try:
                             # Build context
                             messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles"}]
                             messages.extend(video_chat_history[-5:])
                             
-                            from g4f.client import Client
-                            client = Client()
-                            response = client.chat.completions.create(
-                                model="gpt-4o",
-                                messages=messages,
-                            )
-                            answer = response.choices[0].message.content
+                            import requests
+                            api_res = requests.post("https://text.pollinations.ai/openai", json={"messages": messages, "model": "openai"})
+                            api_res.raise_for_status()
+                            answer = api_res.json()["choices"][0]["message"]["content"]
                             video_chat_history.append({"role": "assistant", "content": answer})
                         except Exception as e:
                             st.error(f"Failed to get response: {e}")
                             video_chat_history.pop() # remove the user message if it failed
-                else:
-                    st.error("AI module not loaded. Please ensure g4f is installed.")
                 st.rerun()
 
 
