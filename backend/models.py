@@ -323,7 +323,8 @@ def get_all_segments(user_id: int = None) -> list[dict]:
         if user_id is None:
             rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
         else:
-            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+            is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
                 rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
             else:
@@ -387,7 +388,8 @@ def get_modules_by_segment(segment_id: int, user_id: int = None) -> list[dict]:
                 ORDER BY sort_order, name
             """, (segment_id,)).fetchall()
         else:
-            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+            is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
                 rows = c.execute("""
                     SELECT * FROM modules
@@ -493,7 +495,8 @@ def get_videos_by_segment(segment_id: int, user_id: int = None) -> list[dict]:
                 ORDER BY v.telegram_msg_id
             """, (segment_id,)).fetchall()
         else:
-            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+            is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
                 rows = c.execute("""
                     SELECT v.*, s.name as segment_name, s.icon as segment_icon,
@@ -530,7 +533,8 @@ def get_videos_by_module(module_id: int, user_id: int = None) -> list[dict]:
                 ORDER BY v.telegram_msg_id
             """, (module_id,)).fetchall()
         else:
-            is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+            user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+            is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
                 rows = c.execute("""
                     SELECT v.*, s.name as segment_name, s.icon as segment_icon,
@@ -763,7 +767,8 @@ def get_dashboard_stats(user_id: int) -> dict:
 def get_segment_stats(user_id: int) -> list[dict]:
     """Per-segment completion and watch time."""
     with _conn() as c:
-        is_admin = bool(c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()["is_admin"])
+        user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
+        is_admin = bool(user_row["is_admin"]) if user_row else False
         
         if is_admin:
             query = """
