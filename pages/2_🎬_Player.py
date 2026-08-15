@@ -196,12 +196,14 @@ with st.container():
                             messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles"}]
                             messages.extend(video_chat_history[-5:])
                             
-                            response = g4f.ChatCompletion.create(
-                                model="gpt-4o-mini",
-                                provider=g4f.Provider.Pollinations,
+                            from g4f.client import Client
+                            client = Client()
+                            response = client.chat.completions.create(
+                                model="gpt-4o",
                                 messages=messages,
                             )
-                            video_chat_history.append({"role": "assistant", "content": response})
+                            answer = response.choices[0].message.content
+                            video_chat_history.append({"role": "assistant", "content": answer})
                         except Exception as e:
                             st.error(f"Failed to get response: {e}")
                             video_chat_history.pop() # remove the user message if it failed
