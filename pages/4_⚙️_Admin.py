@@ -417,17 +417,17 @@ st.markdown("Backup data to Telegram, delete messages, or force a restore.")
 col_backup, col_delete = st.columns(2)
 
 with col_backup:
-    st.markdown("#### ☁️ Telegram Backup")
+    st.markdown("#### ☁️ GitHub Backup")
     st.caption(
-        "All data (users, progress, course structure) is auto-saved to your "
-        "Telegram Saved Messages every 60 seconds after changes."
+        "Auto backup is disabled. Use the button below to manually force a "
+        "backup of your data (users, progress, course structure) to your private GitHub repo."
     )
     if st.button("💾 Force Backup Now", use_container_width=True, type="primary"):
-        with st.spinner("Backing up to Telegram Saved Messages..."):
+        with st.spinner("Backing up to GitHub..."):
             try:
-                from backend.telegram_backup import force_backup_sync
+                from backend.github_backup import force_backup_sync
                 force_backup_sync()
-                st.success("✅ Backup saved to Telegram Saved Messages!")
+                st.success("✅ Backup saved to GitHub successfully!")
             except Exception as e:
                 st.error(f"Backup failed: {e}")
 

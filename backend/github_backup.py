@@ -1,18 +1,20 @@
 """
-Telegram-based backup & restore for the EdTech platform.
+GitHub-based backup & restore for the EdTech platform.
 
 Saves all metadata (course structure, users, progress, notices, messages)
-as a JSON file to Telegram Saved Messages. On startup, fetches the latest
+as a JSON file to a private GitHub repository. On startup, fetches the latest
 backup and restores the database.
 
-Auto-save is debounced (60 seconds) to avoid Telegram rate limits.
+Auto-save is debounced (60 seconds) to avoid rate limits (disabled in models.py).
 """
 import json
 import time
 import asyncio
 import logging
-import tempfile
 import threading
+import base64
+import requests
+import os
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
@@ -20,10 +22,16 @@ from typing import Optional
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
-BACKUP_CAPTION = "#EDUSTREAM_BACKUP"
 DEBOUNCE_SECONDS = 60
+
+GITHUB_TOKEN = os.getenv("GITHUB_BACKUP_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_BACKUP_REPO")
+GITHUB_PATH = os.getenv("GITHUB_BACKUP_PATH", "backup.json")
 
 # ── Debounce timer state ─────────────────────────────────
 _debounce_timer: Optional[threading.Timer] = None
@@ -31,7 +39,7 @@ _debounce_lock = threading.Lock()
 
 
 # ═══════════════════════════════════════════════════════════
-#  Export: DB → JSON → Telegram Saved Messages
+#  Export: DB → JSON → GitHub
 # ═══════════════════════════════════════════════════════════
 
 def _build_backup_data() -> dict:
@@ -97,6 +105,7 @@ def _build_backup_data() -> dict:
         ],
         "modules": [
             {
+                "id": m["id"],
                 "name": m["name"],
                 "icon": m["icon"],
                 "sort_order": m["sort_order"],
@@ -120,9 +129,11 @@ def _build_backup_data() -> dict:
         ],
         "users": [
             {
+                "id": u["id"],
                 "username": u["username"],
                 "display_name": u["display_name"],
                 "created_at": u.get("created_at", 0),
+                "password_hash": _export_user_passwords().get(u["username"], "")
             }
             for u in users
         ],
@@ -170,100 +181,81 @@ def _export_user_passwords() -> dict:
     return {r["username"]: r["password_hash"] for r in rows}
 
 
-async def export_to_telegram():
-    """Export current DB state to Telegram Saved Messages as a JSON file."""
-    from backend.telegram_client import get_client
+async def export_to_github():
+    """Export current DB state to GitHub as a JSON file."""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        logger.error("GITHUB_BACKUP_TOKEN or GITHUB_BACKUP_REPO not set.")
+        raise Exception("GITHUB_BACKUP_TOKEN or GITHUB_BACKUP_REPO not set in .env")
 
     try:
         data = _build_backup_data()
         json_str = json.dumps(data, ensure_ascii=False, indent=2)
+        content_b64 = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
 
-        client = await get_client()
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
 
-        # Write to a temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", prefix="edustream_backup_",
-            delete=False, encoding="utf-8"
-        ) as f:
-            f.write(json_str)
-            temp_path = f.name
+        # 1. Get the current file's SHA (required to update it)
+        sha = None
+        get_resp = requests.get(url, headers=headers)
+        if get_resp.status_code == 200:
+            sha = get_resp.json().get("sha")
 
-        # Delete previous backup messages to keep Saved Messages clean
-        await _delete_old_backups(client)
+        # 2. Upload/Update the file
+        payload = {
+            "message": f"Backup exported at {datetime.now(timezone.utc).isoformat()}",
+            "content": content_b64,
+        }
+        if sha:
+            payload["sha"] = sha
 
-        # Upload new backup
-        await client.send_file(
-            "me",  # Saved Messages
-            temp_path,
-            caption=BACKUP_CAPTION,
-            force_document=True,
-        )
-
-        # Clean up temp file
-        try:
-            Path(temp_path).unlink()
-        except Exception:
-            pass
-
-        logger.info(f"Backup exported to Telegram Saved Messages ({len(json_str)} bytes)")
+        put_resp = requests.put(url, headers=headers, json=payload)
+        if put_resp.status_code in [200, 201]:
+            logger.info(f"Backup exported to GitHub ({len(json_str)} bytes)")
+        else:
+            logger.error(f"Failed to export backup to GitHub: {put_resp.text}")
+            raise Exception(f"Failed to export backup to GitHub: {put_resp.text}")
 
     except Exception as e:
-        logger.error(f"Failed to export backup to Telegram: {e}")
-
-
-async def _delete_old_backups(client):
-    """Delete previous EDUSTREAM_BACKUP messages from Saved Messages."""
-    try:
-        old_ids = []
-        async for msg in client.iter_messages("me", limit=50):
-            caption = msg.text or msg.message or ""
-            if BACKUP_CAPTION in caption:
-                old_ids.append(msg.id)
-        if old_ids:
-            await client.delete_messages("me", old_ids)
-            logger.info(f"Deleted {len(old_ids)} old backup messages")
-    except Exception as e:
-        logger.warning(f"Failed to delete old backups: {e}")
+        logger.error(f"Failed to export backup to GitHub: {e}")
+        raise
 
 
 # ═══════════════════════════════════════════════════════════
-#  Restore: Telegram Saved Messages → JSON → DB
+#  Restore: GitHub → JSON → DB
 # ═══════════════════════════════════════════════════════════
 
-async def restore_from_telegram() -> bool:
+async def restore_from_github() -> bool:
     """
-    Find the latest EDUSTREAM_BACKUP in Saved Messages, download it,
-    and restore all data into the database.
+    Fetch the latest backup from GitHub and restore all data into the database.
     
     Returns True if a backup was found and restored.
     """
-    from backend.telegram_client import get_client
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        logger.info("GitHub credentials not configured, skipping restore.")
+        return False
 
     try:
-        client = await get_client()
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
 
-        # Find the latest backup message
-        backup_msg = None
-        async for msg in client.iter_messages("me", limit=100):
-            caption = msg.text or msg.message or ""
-            if BACKUP_CAPTION in caption:
-                backup_msg = msg
-                break
-
-        if not backup_msg:
-            logger.info("No backup found in Telegram Saved Messages")
+        get_resp = requests.get(url, headers=headers)
+        if get_resp.status_code != 200:
+            logger.info("No backup found in GitHub repo.")
             return False
 
-        if not backup_msg.file:
-            logger.warning("Backup message found but has no file attachment")
+        content_b64 = get_resp.json().get("content")
+        if not content_b64:
+            logger.warning("Backup file found but it has no content.")
             return False
 
-        # Download the JSON file
-        data_bytes = await client.download_media(backup_msg, bytes)
-        if not data_bytes:
-            logger.warning("Failed to download backup file")
-            return False
-
+        data_bytes = base64.b64decode(content_b64)
         data = json.loads(data_bytes.decode("utf-8"))
         logger.info(f"Backup found (exported at {data.get('exported_at', '?')})")
 
@@ -272,7 +264,7 @@ async def restore_from_telegram() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Failed to restore from Telegram: {e}")
+        logger.error(f"Failed to restore from GitHub: {e}")
         return False
 
 
@@ -288,18 +280,33 @@ def _restore_data(data: dict):
         # 1. Restore users
         user_passwords = data.get("user_passwords", {})
         for user in data.get("users", []):
+            username = user["username"]
+            display_name = user["display_name"]
+            created_at = user.get("created_at", time.time())
+            password_hash = user.get("password_hash") or user_passwords.get(username, "")
+            
             existing = conn.execute(
-                "SELECT id FROM users WHERE username = ?", (user["username"],)
+                "SELECT id FROM users WHERE username = ?", (username,)
             ).fetchone()
-            if not existing:
-                password_hash = user_passwords.get(user["username"], "")
+            
+            if existing:
+                if password_hash:
+                    conn.execute("UPDATE users SET password_hash = ?, display_name = ? WHERE id = ?", 
+                                 (password_hash, display_name, existing["id"]))
+            else:
                 if not password_hash:
-                    logger.warning(f"Skipping user {user['username']} — no password hash in backup")
+                    logger.warning(f"Skipping user {username} — no password hash in backup")
                     continue
-                conn.execute(
-                    "INSERT INTO users (username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?)",
-                    (user["username"], password_hash, user["display_name"], user.get("created_at", time.time())),
-                )
+                if "id" in user:
+                    conn.execute(
+                        "INSERT INTO users (id, username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (user["id"], username, password_hash, display_name, created_at),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO users (username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?)",
+                        (username, password_hash, display_name, created_at),
+                    )
         conn.commit()
 
         # 2. Restore segments
@@ -336,20 +343,32 @@ def _restore_data(data: dict):
                 ).fetchone()
             seg_id = seg_row["id"]
 
-            existing = conn.execute(
-                "SELECT id FROM modules WHERE name = ? AND segment_id = ?",
-                (mod["name"], seg_id),
-            ).fetchone()
+            existing = None
+            if "id" in mod:
+                existing = conn.execute("SELECT id FROM modules WHERE id = ?", (mod["id"],)).fetchone()
+            
+            if not existing:
+                existing = conn.execute(
+                    "SELECT id FROM modules WHERE name = ? AND segment_id = ?",
+                    (mod["name"], seg_id),
+                ).fetchone()
+
             if existing:
                 conn.execute(
-                    "UPDATE modules SET icon = ?, sort_order = ? WHERE id = ?",
-                    (mod["icon"], mod.get("sort_order", 0), existing["id"]),
+                    "UPDATE modules SET name = ?, icon = ?, sort_order = ?, segment_id = ? WHERE id = ?",
+                    (mod["name"], mod["icon"], mod.get("sort_order", 0), seg_id, existing["id"]),
                 )
             else:
-                conn.execute(
-                    "INSERT INTO modules (name, segment_id, icon, sort_order) VALUES (?, ?, ?, ?)",
-                    (mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0)),
-                )
+                if "id" in mod:
+                    conn.execute(
+                        "INSERT INTO modules (id, name, segment_id, icon, sort_order) VALUES (?, ?, ?, ?, ?)",
+                        (mod["id"], mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0)),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO modules (name, segment_id, icon, sort_order) VALUES (?, ?, ?, ?)",
+                        (mod["name"], seg_id, mod["icon"], mod.get("sort_order", 0)),
+                    )
         conn.commit()
 
         # 4. Restore notices
@@ -518,20 +537,13 @@ def _restore_messages(conn, messages: list):
             )
 
 
-
 # ═══════════════════════════════════════════════════════════
 #  Debounced auto-save
 # ═══════════════════════════════════════════════════════════
 
 def schedule_backup():
     """
-    Schedule a backup to Telegram, debounced to DEBOUNCE_SECONDS.
-    
-    If called multiple times within the debounce window, only the
-    last call triggers the actual backup. This batches rapid changes
-    (e.g. bulk video reassignment) into one upload.
-    
-    Safe to call from sync code — runs the async export in a background thread.
+    Schedule a backup to GitHub, debounced to DEBOUNCE_SECONDS.
     """
     global _debounce_timer
 
@@ -550,7 +562,7 @@ def _run_backup():
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(export_to_telegram())
+        loop.run_until_complete(export_to_github())
         loop.close()
     except Exception as e:
         logger.error(f"Background backup failed: {e}")
@@ -573,7 +585,7 @@ def force_backup_sync():
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(export_to_telegram())
+        loop.run_until_complete(export_to_github())
         loop.close()
     except Exception as e:
         logger.error(f"Force backup failed: {e}")

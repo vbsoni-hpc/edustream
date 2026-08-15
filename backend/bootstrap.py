@@ -24,16 +24,16 @@ async def run_bootstrap():
     """Full bootstrap sequence."""
     from backend.models import init_db
     from backend.telegram_client import get_client, sync_channel, disconnect
-    from backend.telegram_backup import restore_from_telegram
+    from backend.github_backup import restore_from_github
     from config import DEFAULT_SEGMENT_ICONS
 
     # Step 1: Init database
     logger.info("Step 1/4: Initialising database...")
     init_db()
 
-    # Step 2: Restore from Telegram backup
-    logger.info("Step 2/4: Restoring backup from Telegram Saved Messages...")
-    restored = await restore_from_telegram()
+    # Step 2: Restore from GitHub backup
+    logger.info("Step 2/4: Restoring backup from GitHub...")
+    restored = await restore_from_github()
     if restored:
         logger.info("  ✔ Backup restored successfully")
     else:

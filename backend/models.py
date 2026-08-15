@@ -17,11 +17,8 @@ from config import DB_PATH
 
 def _trigger_backup():
     """Trigger a debounced backup to Telegram. Safe to call frequently."""
-    try:
-        from backend.telegram_backup import schedule_backup
-        schedule_backup()
-    except Exception:
-        pass  # Don't let backup failures affect normal operations
+    # Auto-backup disabled per request. Using manual backups only.
+    pass
 
 
 # ═══════════════════════════════════════════════════════════
