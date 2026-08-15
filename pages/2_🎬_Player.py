@@ -173,7 +173,8 @@ if "ai_chat_history" not in st.session_state:
 video_chat_history = st.session_state["ai_chat_history"].setdefault(video_id, [])
 
 st.markdown("<br>", unsafe_allow_html=True)
-with st.expander("🤖 Ask AI (Beta)", expanded=False):
+st.markdown("###### 🤖 Ask AI (Beta)")
+with st.container():
     if not video_chat_history:
         st.caption("Got a question about this lecture? Ask the AI!")
     else:
