@@ -18,11 +18,13 @@ from backend.models import (
     get_modules_by_segment,
     get_video_progress,
     get_segment_stats,
+    get_user_subscriptions,
+    get_segment_leaderboard,
 )
 
 init_db()
 
-st.set_page_config(page_title="Courses — EduStream", page_icon="📚", layout="wide")
+st.set_page_config(page_title="My Courses — EduStream", page_icon="📚", layout="wide")
 
 # ── Check auth ────────────────────────────────────────────
 if not st.session_state.get("user_id"):
@@ -154,9 +156,13 @@ st.markdown("""
 
 
 # ── Sidebar filter ────────────────────────────────────────
-segments = get_all_segments(user_id)
+all_segments = get_all_segments(user_id)
+subscribed_ids = get_user_subscriptions(user_id)
+
+segments = [s for s in all_segments if s["id"] in subscribed_ids]
+
 if not segments:
-    st.info("No courses synced or accessible yet.")
+    st.info("You haven't subscribed to any courses yet. Go to the Dashboard to discover and subscribe to courses!")
     st.stop()
 
 segment_names = ["All Segments"] + [f"{s['icon']} {s['name']}" for s in segments]
@@ -287,6 +293,19 @@ for seg in segments_to_show:
             <div class="progress-inner" style="width:{seg_pct}%;"></div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # ── Show Segment Leaderboard ──
+        leaderboard = get_segment_leaderboard(seg["id"])
+        if leaderboard:
+            st.markdown("#### 🏆 Course Leaderboard (Last 7 Days)")
+            cols = st.columns(min(len(leaderboard), 3))
+            for i, col in enumerate(cols):
+                if i < len(leaderboard):
+                    user_stat = leaderboard[i]
+                    hrs = user_stat['total_watch_sec'] / 3600
+                    medal = ["🥇", "🥈", "🥉"][i] if i < 3 else f"#{i+1}"
+                    col.markdown(f"**{medal} {user_stat['display_name']}** — {hrs:.1f}h")
+            st.markdown("<hr style='margin: 10px 0; opacity: 0.2;'>", unsafe_allow_html=True)
 
         # Get modules for this segment
         seg_modules = get_modules_by_segment(seg["id"], user_id)

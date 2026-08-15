@@ -106,6 +106,11 @@ CREATE TABLE IF NOT EXISTS user_module_access (
     module_id    INTEGER NOT NULL REFERENCES modules(id),
     PRIMARY KEY (user_id, module_id)
 );
+CREATE TABLE IF NOT EXISTS user_segment_subscriptions (
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    segment_id   INTEGER NOT NULL REFERENCES segments(id),
+    PRIMARY KEY (user_id, segment_id)
+);
 """
 
 # Migration: add module_id to existing videos table if missing
@@ -122,7 +127,8 @@ _MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS user_module_access (user_id INTEGER NOT NULL REFERENCES users(id), module_id INTEGER NOT NULL REFERENCES modules(id), PRIMARY KEY (user_id, module_id))",
     "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'",
     "ALTER TABLE videos ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
-    "CREATE TABLE IF NOT EXISTS user_video_access (user_id INTEGER NOT NULL REFERENCES users(id), video_id INTEGER NOT NULL REFERENCES videos(id), PRIMARY KEY (user_id, video_id))"
+    "CREATE TABLE IF NOT EXISTS user_video_access (user_id INTEGER NOT NULL REFERENCES users(id), video_id INTEGER NOT NULL REFERENCES videos(id), PRIMARY KEY (user_id, video_id))",
+    "CREATE TABLE IF NOT EXISTS user_segment_subscriptions (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))"
 ]
 
 
@@ -667,6 +673,24 @@ def is_user_admin(user_id: int) -> bool:
         row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
         return bool(row["is_admin"]) if row else False
 
+def get_user_subscriptions(user_id: int) -> list[int]:
+    with _conn() as c:
+        rows = c.execute("SELECT segment_id FROM user_segment_subscriptions WHERE user_id = ?", (user_id,)).fetchall()
+        return [r["segment_id"] for r in rows]
+
+def subscribe_to_segment(user_id: int, segment_id: int):
+    with _conn() as c:
+        c.execute("INSERT OR IGNORE INTO user_segment_subscriptions (user_id, segment_id) VALUES (?, ?)", (user_id, segment_id))
+        c.commit()
+        _trigger_backup()
+
+def unsubscribe_from_segment(user_id: int, segment_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM user_segment_subscriptions WHERE user_id = ? AND segment_id = ?", (user_id, segment_id))
+        c.commit()
+        _trigger_backup()
+
+
 
 # ── Progress ──────────────────────────────────────────────
 
@@ -904,6 +928,25 @@ def get_leaderboard(days: int = 1) -> list[dict]:
             ORDER BY total_watch_sec DESC
             LIMIT 10
         """, (cutoff,)).fetchall()
+        return [dict(r) for r in rows]
+
+def get_segment_leaderboard(segment_id: int, days: int = 7) -> list[dict]:
+    """Get leaderboard of watch time for a specific segment over the last N days."""
+    with _conn() as c:
+        cutoff = time.time() - (days * 86400)
+        rows = c.execute("""
+            SELECT 
+                u.username, u.display_name, 
+                COALESCE(SUM(p.watch_seconds), 0) as total_watch_sec
+            FROM users u
+            JOIN progress p ON u.id = p.user_id
+            JOIN videos v ON p.video_id = v.id
+            WHERE p.last_watched_at >= ? AND v.segment_id = ?
+            GROUP BY u.id
+            HAVING total_watch_sec > 0
+            ORDER BY total_watch_sec DESC
+            LIMIT 10
+        """, (cutoff, segment_id)).fetchall()
         return [dict(r) for r in rows]
 
 

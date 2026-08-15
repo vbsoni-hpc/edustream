@@ -41,6 +41,9 @@ def render_video_player(
         st.video(f"https://www.youtube.com/watch?v={youtube_id}", start_time=int(last_position))
         st.info("ℹ️ Progress tracking is limited for YouTube videos. Please use the **Mark as Complete** button below when finished.")
         return
+    elif mime_type == 'video/youtube':
+        st.error("This YouTube video is missing its video ID and cannot be played. Please contact the administrator.")
+        return
 
     html = f"""
     <!DOCTYPE html>

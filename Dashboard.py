@@ -24,6 +24,9 @@ from backend.models import (
     get_latest_notices,
     is_user_admin,
     get_last_viewed_segment_stats,
+    get_user_subscriptions,
+    subscribe_to_segment,
+    unsubscribe_from_segment,
 )
 from backend.auth import hash_password, verify_password, create_access_token
 from backend.youtube import process_youtube_playlist
@@ -101,6 +104,7 @@ st.markdown("""
         padding: 24px;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        height: 100%;
     }
     .segment-card:hover {
         border-color: rgba(108, 99, 255, 0.5);
@@ -116,11 +120,31 @@ st.markdown("""
         font-weight: 700;
         color: #FAFAFA;
         margin-bottom: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .segment-meta {
         font-size: 13px;
         color: #9CA3AF;
         margin-bottom: 14px;
+    }
+    
+    /* Carousel CSS via :has() pseudo-class */
+    div[data-testid="stHorizontalBlock"]:has(.segment-card) {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 16px;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.segment-card)::-webkit-scrollbar {
+        display: none;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.segment-card) > div[data-testid="column"] {
+        min-width: 320px !important;
+        max-width: 320px !important;
+        flex: 0 0 auto !important;
     }
 
     /* Progress bar */
@@ -219,6 +243,18 @@ st.markdown("""
         background: linear-gradient(135deg, #7B73FF, #6C63FF);
         transform: translateY(-1px);
         box-shadow: 0 6px 20px rgba(108, 99, 255, 0.3);
+    }
+    
+    /* Subscribe Button override */
+    button[data-testid="baseButton-secondary"]:has(div:contains("Subscribe")) {
+        background: rgba(108, 99, 255, 0.1) !important;
+        border: 1px solid rgba(108, 99, 255, 0.4) !important;
+        color: #a78bfa !important;
+    }
+    button[data-testid="baseButton-secondary"]:has(div:contains("Unsubscribe")) {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border: 1px solid rgba(239, 68, 68, 0.4) !important;
+        color: #f87171 !important;
     }
 
     /* Tabs styling */
@@ -487,35 +523,37 @@ def show_home():
     
 
     # ── Segment Cards ──
-    st.markdown("#### 📚 Courses")
     segment_stats = get_segment_stats(user_id)
-    
-    # Filter out 'General' and 'Uncategorized' segments from being displayed on the dashboard
     segment_stats = [seg for seg in segment_stats if seg['name'] not in ('General', 'Uncategorized')]
 
     if not segment_stats:
         st.info("No courses synced yet. Go to the **⚙️ Admin** page to sync your Telegram channel.")
         return
 
-    # Create rows of 3 cards each
-    cols_per_row = 3
-    for i in range(0, len(segment_stats), cols_per_row):
-        cols = st.columns(cols_per_row)
-        for j, col in enumerate(cols):
-            idx = i + j
-            if idx >= len(segment_stats):
-                break
-            seg = segment_stats[idx]
-            seg_pct = (seg["completed_videos"] / seg["total_videos"] * 100) if seg["total_videos"] > 0 else 0
-            watch_hrs = seg["watch_seconds"] / 3600
+    subscribed_ids = set(get_user_subscriptions(user_id))
+    my_courses = [s for s in segment_stats if s['id'] in subscribed_ids]
 
+    def render_carousel(title, items, show_empty=False):
+        if not items and not show_empty:
+            return
+            
+        st.markdown(f"#### {title}")
+        if not items and show_empty:
+            st.info("You haven't subscribed to any courses yet. Discover and subscribe below!")
+            st.markdown("<br>", unsafe_allow_html=True)
+            return
+            
+        cols = st.columns(len(items))
+        for col, seg in zip(cols, items):
             with col:
+                seg_pct = (seg["completed_videos"] / seg["total_videos"] * 100) if seg["total_videos"] > 0 else 0
+                watch_hrs = seg["watch_seconds"] / 3600
                 st.markdown(f"""
                 <div class="segment-card">
                     <div class="segment-icon">{seg['icon']}</div>
-                    <div class="segment-name">{seg['name']}</div>
+                    <div class="segment-name" title="{seg['name']}">{seg['name']}</div>
                     <div class="segment-meta">
-                        {seg['total_videos']} videos · {seg['completed_videos']} completed · {watch_hrs:.1f}h watched
+                        {seg['total_videos']} videos · {seg['completed_videos']} completed<br>{watch_hrs:.1f}h watched
                     </div>
                     <div class="progress-outer">
                         <div class="progress-inner" style="width:{seg_pct}%;"></div>
@@ -526,9 +564,28 @@ def show_home():
                     </details>
                 </div>
                 """, unsafe_allow_html=True)
-                st.page_link("pages/1_📚_Courses.py", label=f"Open {seg['name']} Course", icon="📖", use_container_width=False)
+                
+                # Buttons
+                bcol1, bcol2 = st.columns([1, 1])
+                with bcol1:
+                    if seg['id'] in subscribed_ids:
+                        st.page_link("pages/1_📚_My_Courses.py", label="Open", icon="📖", use_container_width=True)
+                    else:
+                        st.page_link("pages/1_📚_My_Courses.py", label="Open", icon="🔒", disabled=True, use_container_width=True, help="Subscribe to open")
+                with bcol2:
+                    if seg['id'] in subscribed_ids:
+                        if st.button("Unsubscribe", key=f"unsub_{title}_{seg['id']}", use_container_width=True):
+                            unsubscribe_from_segment(user_id, seg['id'])
+                            st.rerun()
+                    else:
+                        if st.button("Subscribe", key=f"sub_{title}_{seg['id']}", use_container_width=True):
+                            subscribe_to_segment(user_id, seg['id'])
+                            st.rerun()
+                            
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    render_carousel("📚 My Courses", my_courses, show_empty=True)
+    render_carousel("🌐 All Courses", segment_stats)
 
     # ── Leaderboards ──
     st.markdown("#### 🏆 Top Learners")
