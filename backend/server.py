@@ -266,7 +266,7 @@ async def trigger_sync():
     
     synced_count = 0
     for v in videos:
-        segment_name = v["segment"]
+        segment_name = v.get("segment") or "General"
         icon = DEFAULT_SEGMENT_ICONS.get(segment_name, "📁")
         segment_id = get_or_create_segment(segment_name, icon)
         upsert_video(
