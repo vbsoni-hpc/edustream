@@ -601,13 +601,13 @@ def show_home():
             
             if subscribed:
                 btn_html = f'''
-                    <button class="custom-btn btn-primary" onclick="window.triggerAction('open_{seg['id']}')">📖 Open</button>
-                    <button class="custom-btn btn-secondary" onclick="window.triggerAction('unsub_{seg['id']}')">Unsubscribe</button>
+                    <button class="custom-btn btn-primary js-btn" id="open_{seg['id']}">📖 Open</button>
+                    <button class="custom-btn btn-secondary js-btn" id="unsub_{seg['id']}">Unsubscribe</button>
                 '''
             else:
                 btn_html = f'''
                     <button class="custom-btn btn-disabled" disabled>🔒 Open</button>
-                    <button class="custom-btn btn-primary" onclick="window.triggerAction('sub_{seg['id']}')">Subscribe</button>
+                    <button class="custom-btn btn-primary js-btn" id="sub_{seg['id']}">Subscribe</button>
                 '''
                 
             desc = seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."
@@ -673,19 +673,29 @@ def show_home():
         hideHiddenButtons();
         setTimeout(hideHiddenButtons, 500); // retry to ensure they are hidden
         
-        window.parent.triggerAction = function(key) {
-            let textToFind = "";
-            if (key.startsWith("sub_")) textToFind = "HiddenSub_" + key.split("_")[1];
-            if (key.startsWith("unsub_")) textToFind = "HiddenUnsub_" + key.split("_")[1];
-            if (key.startsWith("open_")) textToFind = "HiddenOpen_" + key.split("_")[1];
-            
-            const buttons = window.parent.document.querySelectorAll('button');
-            buttons.forEach(btn => {
-                if (btn.innerText.includes(textToFind)) {
-                    btn.click();
+        function attachListeners() {
+            const customBtns = window.parent.document.querySelectorAll('.js-btn');
+            customBtns.forEach(btn => {
+                if (!btn.dataset.listenerAttached) {
+                    btn.addEventListener('click', function() {
+                        const action = this.id;
+                        let textToFind = "";
+                        if (action.startsWith("sub_")) textToFind = "HiddenSub_" + action.split("_")[1];
+                        if (action.startsWith("unsub_")) textToFind = "HiddenUnsub_" + action.split("_")[1];
+                        if (action.startsWith("open_")) textToFind = "HiddenOpen_" + action.split("_")[1];
+                        
+                        const hiddenBtns = window.parent.document.querySelectorAll('button');
+                        hiddenBtns.forEach(hbtn => {
+                            if (hbtn.innerText.includes(textToFind)) {
+                                hbtn.click();
+                            }
+                        });
+                    });
+                    btn.dataset.listenerAttached = "true";
                 }
             });
         }
+        setInterval(attachListeners, 500);
         </script>
         """, height=0, width=0
     )
