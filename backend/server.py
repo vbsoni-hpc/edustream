@@ -13,6 +13,7 @@ import logging
 import re
 from contextlib import asynccontextmanager
 from typing import Optional
+import asyncio
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -57,12 +58,47 @@ logger = logging.getLogger(__name__)
 #  App lifecycle
 # ═══════════════════════════════════════════════════════════
 
+async def auto_sync_task():
+    """Background task to sync the Telegram channel periodically."""
+    while True:
+        try:
+            logger.info("Starting auto-sync...")
+            videos = await sync_channel()
+            synced_count = 0
+            for v in videos:
+                segment_name = v.get("segment") or "General"
+                icon = DEFAULT_SEGMENT_ICONS.get(segment_name, "📁")
+                segment_id = get_or_create_segment(segment_name, icon)
+                upsert_video(
+                    telegram_msg_id=v["telegram_msg_id"],
+                    title=v["title"],
+                    segment_id=segment_id,
+                    duration_sec=v["duration_sec"],
+                    file_size=v["file_size"],
+                    mime_type=v["mime_type"],
+                    caption=v["caption"],
+                )
+                synced_count += 1
+            logger.info(f"Auto-sync complete. Synced {synced_count} videos.")
+        except Exception as e:
+            logger.error(f"Auto-sync failed: {e}")
+        
+        # Sleep for 1 hour (3600 seconds)
+        await asyncio.sleep(3600)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown."""
     await async_init_db()
     logger.info("Database initialised")
+    
+    # Start auto-sync background task
+    sync_task = asyncio.create_task(auto_sync_task())
+    
     yield
+    
+    sync_task.cancel()
     await disconnect()
     logger.info("Telegram client disconnected")
 
