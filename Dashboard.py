@@ -634,8 +634,10 @@ def show_home():
             ''')
         html_lines.append('</div>')
         
-        st.markdown("".join(html_lines), unsafe_allow_html=True)
-        
+        import re
+        final_html = "".join(html_lines)
+        final_html = re.sub(r"^\s+", "", final_html, flags=re.MULTILINE)
+        st.markdown(final_html, unsafe_allow_html=True)
         # Render Hidden Streamlit Buttons
         for seg in items:
             subscribed = seg['id'] in subscribed_ids
