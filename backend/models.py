@@ -464,11 +464,13 @@ def upsert_video(telegram_msg_id: int, title: str, segment_id: int,
     with _conn() as c:
         row = c.execute("SELECT id FROM videos WHERE telegram_msg_id = ?", (telegram_msg_id,)).fetchone()
         if row:
+            # DO NOT overwrite segment_id or module_id for existing videos!
+            # The user might have customized them, or they were just restored from backup.
             c.execute("""
-                UPDATE videos SET title=?, segment_id=?, duration_sec=?, file_size=?,
+                UPDATE videos SET title=?, duration_sec=?, file_size=?,
                        mime_type=?, caption=?, synced_at=?
                 WHERE telegram_msg_id=?
-            """, (title, segment_id, duration_sec, file_size, mime_type, caption, time.time(), telegram_msg_id))
+            """, (title, duration_sec, file_size, mime_type, caption, time.time(), telegram_msg_id))
             c.commit()
             return row["id"]
         cur = c.execute("""
