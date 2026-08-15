@@ -108,6 +108,14 @@ def _build_backup_data() -> dict:
     """).fetchall()
     user_video_access = [{"username": r["username"], "telegram_msg_id": r["telegram_msg_id"]} for r in uva]
     
+    subs = conn.execute("""
+        SELECT u.username, s.name as segment_name
+        FROM user_segment_subscriptions a
+        JOIN users u ON a.user_id = u.id
+        JOIN segments s ON a.segment_id = s.id
+    """).fetchall()
+    user_segment_subscriptions = [{"username": r["username"], "segment_name": r["segment_name"]} for r in subs]
+
     # Calculate Leaderboard
     leaderboard_rows = conn.execute("""
         SELECT 
@@ -188,6 +196,7 @@ def _build_backup_data() -> dict:
         "user_segment_access": user_segment_access,
         "user_module_access": user_module_access,
         "user_video_access": user_video_access,
+        "user_segment_subscriptions": user_segment_subscriptions,
         "progress": [
             {
                 "username": p["username"],
@@ -574,6 +583,14 @@ def _restore_data(data: dict):
             v_row = conn.execute("SELECT id FROM videos WHERE telegram_msg_id = ?", (uva["telegram_msg_id"],)).fetchone()
             if u_row and v_row:
                 conn.execute("INSERT OR IGNORE INTO user_video_access (user_id, video_id) VALUES (?, ?)", (u_row["id"], v_row["id"]))
+        
+        conn.execute("DELETE FROM user_segment_subscriptions")
+        for sub in data.get("user_segment_subscriptions", []):
+            u_row = conn.execute("SELECT id FROM users WHERE username = ?", (sub["username"],)).fetchone()
+            s_row = conn.execute("SELECT id FROM segments WHERE name = ?", (sub["segment_name"],)).fetchone()
+            if u_row and s_row:
+                conn.execute("INSERT OR IGNORE INTO user_segment_subscriptions (user_id, segment_id) VALUES (?, ?)", (u_row["id"], s_row["id"]))
+                
         conn.commit()
 
         logger.info(
