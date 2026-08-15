@@ -601,13 +601,13 @@ def show_home():
             
             if subscribed:
                 btn_html = f'''
-                    <button class="custom-btn btn-primary" onclick="window.parent.triggerAction('open_{seg['id']}')">📖 Open</button>
-                    <button class="custom-btn btn-secondary" onclick="window.parent.triggerAction('unsub_{seg['id']}')">Unsubscribe</button>
+                    <button class="custom-btn btn-primary" onclick="window.triggerAction('open_{seg['id']}')">📖 Open</button>
+                    <button class="custom-btn btn-secondary" onclick="window.triggerAction('unsub_{seg['id']}')">Unsubscribe</button>
                 '''
             else:
                 btn_html = f'''
                     <button class="custom-btn btn-disabled" disabled>🔒 Open</button>
-                    <button class="custom-btn btn-primary" onclick="window.parent.triggerAction('sub_{seg['id']}')">Subscribe</button>
+                    <button class="custom-btn btn-primary" onclick="window.triggerAction('sub_{seg['id']}')">Subscribe</button>
                 '''
                 
             desc = seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."
