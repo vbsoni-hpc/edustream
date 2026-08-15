@@ -146,7 +146,7 @@ last_position = st.session_state["player_start_pos"]
 st.markdown(f"""
 <div class="player-header">
     <div class="player-breadcrumb">
-        <span>{video.get('segment_icon', '📁')} {video.get('segment_name', 'General')}</span>
+        <span>{video.get('segment_icon', '📁')} {video.get('segment_name') or 'Uncategorized'}</span>
     </div>
     <div class="player-title">{video['title']}</div>
 </div>

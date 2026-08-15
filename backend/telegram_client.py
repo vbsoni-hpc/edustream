@@ -69,12 +69,12 @@ def extract_segment_from_caption(caption: str) -> str:
     """
     Extract segment name from caption hashtags.
     e.g. '#Math Lecture 1 on derivatives' → 'Math'
-    Falls back to 'General' if no hashtag found.
+    Returns None if no hashtag is found.
     """
     if not caption:
-        return "General"
+        return None
     match = _HASHTAG_RE.search(caption)
-    return match.group(1) if match else "General"
+    return match.group(1) if match else None
 
 
 def extract_title_from_caption(caption: str) -> str:
