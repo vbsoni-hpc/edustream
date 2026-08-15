@@ -238,6 +238,16 @@ def get_latest_notices(limit: int = 3) -> list[dict]:
         rows = c.execute("SELECT * FROM notices ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
 
+def get_all_notices() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM notices ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+def delete_notice(notice_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM notices WHERE id = ?", (notice_id,))
+        c.commit()
+
 
 # ── Segments ──────────────────────────────────────────────
 

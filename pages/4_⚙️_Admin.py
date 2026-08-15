@@ -29,6 +29,8 @@ from backend.models import (
     unassign_videos_from_module,
     upsert_video,
     add_notice,
+    get_all_notices,
+    delete_notice,
 )
 
 init_db()
@@ -68,7 +70,7 @@ st.markdown("---")
 # ═══════════════════════════════════════════════════════════
 #  Notices
 # ═══════════════════════════════════════════════════════════
-st.markdown("### 📢 Post Notice")
+st.markdown("### 📢 Manage Notices")
 st.markdown("Broadcast an important message to all students on the dashboard.")
 with st.form("notice_form", clear_on_submit=True):
     notice_text = st.text_area("Notice Content", placeholder="Type your notice here...")
@@ -77,10 +79,26 @@ with st.form("notice_form", clear_on_submit=True):
         if notice_text.strip():
             add_notice(notice_text.strip())
             st.success("✅ Notice posted successfully!")
+            st.rerun()
         else:
             st.error("Notice cannot be empty.")
-st.markdown("---")
 
+st.markdown("#### Existing Notices")
+all_notices = get_all_notices()
+if not all_notices:
+    st.caption("No notices posted.")
+else:
+    for notice in all_notices:
+        with st.container():
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.info(notice["content"])
+            with col2:
+                if st.button("🗑️ Delete", key=f"del_notice_{notice['id']}", use_container_width=True):
+                    delete_notice(notice['id'])
+                    st.rerun()
+
+st.markdown("---")
 # ── Natural sort helper ──────────────────────────────────
 _NUM_RE = re.compile(r"(\d+)")
 def _natural_key(title):

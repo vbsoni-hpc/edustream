@@ -187,7 +187,7 @@ segment_videos = get_videos_by_segment(video.get("segment_id")) if video.get("se
 segment_videos = sorted(segment_videos, key=lambda v: _natural_key(v["title"]))
 current_idx = next((i for i, v in enumerate(segment_videos) if v["id"] == video_id), -1)
 
-col_prev, col_info, col_next = st.columns([1, 2, 1])
+col_prev, col_next = st.columns([1, 1])
 
 with col_prev:
     if current_idx > 0:
@@ -201,30 +201,6 @@ with col_prev:
         if st.button("⬅ Previous", key="prev_btn", use_container_width=True):
             st.session_state["current_video_id"] = prev_video["id"]
             st.rerun()
-
-with col_info:
-    # Segment progress
-    if segment_videos:
-        seg_completed = sum(
-            1 for v in segment_videos
-            if (p := get_video_progress(user_id, v["id"])) and p["completed"]
-        )
-        seg_pct = seg_completed / len(segment_videos) * 100
-        st.markdown(f"""
-        <div class="progress-section">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <span style="font-size:13px; color:#9CA3AF;">
-                    {video.get('segment_icon', '📁')} {video.get('segment_name', '')} Progress
-                </span>
-                <span style="font-size:13px; font-weight:700; color:#a78bfa;">
-                    {seg_completed}/{len(segment_videos)} · {seg_pct:.0f}%
-                </span>
-            </div>
-            <div class="progress-outer">
-                <div class="progress-inner" style="width:{seg_pct}%;"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
 with col_next:
     if current_idx >= 0 and current_idx < len(segment_videos) - 1:

@@ -7,7 +7,9 @@ from backend.models import (
     send_message,
     get_messages_for_user,
     mark_messages_read,
-    get_all_users
+    get_all_users,
+    ping_user,
+    get_online_users
 )
 
 @st.fragment(run_every="5s")
@@ -76,13 +78,29 @@ def render_messaging_sidebar():
     current_username = st.session_state.get("username")
     is_admin = (current_username == "vbsoni")
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 💬 Messaging")
+    @st.fragment(run_every="5s")
+    def render_online_users_widget():
+        ping_user(user_id)
+        online_users = get_online_users(minutes=1/12)
+        st.sidebar.caption("#####  Online ")
+        if online_users:
+            html = "<div>"
+            for u in online_users:
+                html += f'<div class="online-badge"><div class="online-dot"></div>{u["display_name"]}</div>'
+            html += "</div>"
+            st.sidebar.markdown(html, unsafe_allow_html=True)
+        else:
+            st.sidebar.caption("No one is online right now.")
+            
+    render_online_users_widget()
+    st.sidebar.divider()
+
+    st.sidebar.markdown("##### Messaging")
 
     # 1. GLOBAL CHAT
-    with st.sidebar.expander("🌍 Global Chat", expanded=False):
+    with st.sidebar.expander(" 💬Hangout", expanded=False):
         with st.form("sb_global_chat_form", clear_on_submit=True):
-            new_msg = st.text_input("Message", placeholder="Chat with everyone...", label_visibility="collapsed")
+            new_msg = st.text_input("Message", placeholder="type here", label_visibility="collapsed")
             if st.form_submit_button("Send 🚀", use_container_width=True):
                 if new_msg.strip():
                     send_message(user_id, 0, new_msg.strip())
@@ -91,11 +109,11 @@ def render_messaging_sidebar():
         render_global_chat_messages(user_id)
 
     # 2. DIRECT INBOX
-    with st.sidebar.expander("📥 Direct Inbox", expanded=False):
+    with st.sidebar.expander("📥Inbox", expanded=False):
         render_inbox_messages(user_id)
 
     # 3. COMPOSE
-    with st.sidebar.expander("✏️ Compose DM", expanded=False):
+    with st.sidebar.expander("✏️DM", expanded=False):
         users = get_all_users()
         recipient_options = [u for u in users if u["id"] != user_id]
         

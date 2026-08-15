@@ -293,7 +293,6 @@ def logout():
 # ═══════════════════════════════════════════════════════════
 
 def show_auth_page():
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="login-title">🎓 EduStream</div>', unsafe_allow_html=True)
     st.markdown('<div class="login-subtitle">Your premium course platform</div>', unsafe_allow_html=True)
 
@@ -359,31 +358,27 @@ def show_home():
 
     # ── Sidebar ──
     with st.sidebar:
-        st.markdown(f"### 👤 {display_name}")
-        st.caption(f"@{st.session_state['username']}")
+        st.caption(f"#### 👤 {display_name} @{st.session_state['username']}")
         st.divider()
-        
-        # Online users widget (5 second threshold)
-        @st.fragment(run_every="5s")
-        def render_online_users_widget():
-            ping_user(user_id)
-            online_users = get_online_users(minutes=1/12)
-            st.markdown("**🟢 Online Now**")
-            if online_users:
-                html = "<div>"
-                for u in online_users:
-                    html += f'<div class="online-badge"><div class="online-dot"></div>{u["display_name"]}</div>'
-                html += "</div>"
-                st.markdown(html, unsafe_allow_html=True)
-            else:
-                st.caption("No one is online right now.")
-        
-        render_online_users_widget()
-            
-        st.divider()
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             logout()
             st.rerun()
+
+        import streamlit.components.v1 as components
+        components.html(
+            """
+            <script>
+            const buttons = window.parent.document.querySelectorAll('button');
+            buttons.forEach(b => {
+                if(b.innerText.includes('Logout')) {
+                    b.style.backgroundColor = '#EF4444';
+                    b.style.color = 'white';
+                    b.style.border = 'none';
+                }
+            });
+            </script>
+            """, height=0, width=0
+        )
 
     # ── Hero ──
     stats = get_dashboard_stats(user_id)
@@ -394,65 +389,18 @@ def show_home():
     # ── Notices ──
     notices = get_latest_notices(3)
     if notices:
-        st.markdown("### 📢 Important Notices")
+        st.markdown("##### 📢 Important Notices")
         for notice in notices:
             st.info(notice['content'])
         st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Quick Stats ──
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-value">{stats['total_videos']}</div>
-            <div class="stat-label">Total Videos</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-value">{stats['completed_videos']}</div>
-            <div class="stat-label">Completed</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        pct = stats['completion_pct']
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-value">{pct:.0f}%</div>
-            <div class="stat-label">Progress</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        hours = stats['total_watch_hours']
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-value">{hours:.1f}h</div>
-            <div class="stat-label">Watch Time</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Overall progress bar ──
-    st.markdown(f"""
-    <div class="glass-card">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <span style="font-weight:600; color:#FAFAFA;">Overall Progress</span>
-            <span style="color:#a78bfa; font-weight:700;">{pct:.0f}%</span>
-        </div>
-        <div class="progress-outer">
-            <div class="progress-inner" style="width:{pct}%;"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    pct = stats['completion_pct']
+    hours = stats['total_watch_hours']
+    
 
     # ── Segment Cards ──
-    st.markdown("### 📚 Course Segments")
+    st.markdown("#### 📚 Courses")
     segment_stats = get_segment_stats(user_id)
 
     if not segment_stats:
@@ -488,11 +436,11 @@ def show_home():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Leaderboards ──
-    st.markdown("### 🏆 Top Learners")
+    st.markdown("#### 🏆 Top Learners")
     lb_col1, lb_col2 = st.columns(2)
     
     def render_leaderboard(data, title):
-        html = f'<div class="glass-card"><h4 style="margin-top:0; color:#FAFAFA;">{title}</h4>'
+        html = f'<div class="glass-card"><h5 style="margin-top:0; color:#FAFAFA;">{title}</h4>'
         if not data:
             html += '<p style="color:#9CA3AF; font-size:14px;">No activity yet.</p></div>'
             st.markdown(html, unsafe_allow_html=True)

@@ -152,10 +152,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── Page header ───────────────────────────────────────────
-st.markdown("# 📚 Courses")
-st.markdown("Browse your course segments and track progress.")
-st.markdown("---")
 
 # ── Sidebar filter ────────────────────────────────────────
 segments = get_all_segments()
