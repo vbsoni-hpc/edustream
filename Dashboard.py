@@ -96,22 +96,7 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* Segment card (Applied to Streamlit Column) */
-    div[data-testid="column"]:has(.segment-card-marker) {
-        background: linear-gradient(135deg, rgba(26, 29, 41, 0.9), rgba(26, 29, 41, 0.6));
-        border: 1px solid rgba(108, 99, 255, 0.12);
-        border-radius: 16px;
-        padding: 24px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-    div[data-testid="column"]:has(.segment-card-marker):hover {
-        border-color: rgba(108, 99, 255, 0.5);
-        transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(108, 99, 255, 0.15);
-    }
+    /* Cleaned up old unused JS classes */
     .segment-icon {
         font-size: 40px;
         margin-bottom: 12px;
@@ -129,35 +114,6 @@ st.markdown("""
         font-size: 13px;
         color: #9CA3AF;
         margin-bottom: 14px;
-    }
-    
-    /* Carousel CSS via :has() pseudo-class */
-    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker) {
-        overflow-x: auto;
-        overflow-y: hidden;
-        flex-wrap: nowrap !important;
-        padding-bottom: 24px;
-        margin-bottom: -8px;
-        -ms-overflow-style: none;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(108, 99, 255, 0.5) transparent;
-        gap: 1.5rem !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar {
-        height: 8px;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar-thumb {
-        background-color: rgba(108, 99, 255, 0.5);
-        border-radius: 4px;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker) > div[data-testid="column"] {
-        min-width: 320px !important;
-        max-width: 320px !important;
-        flex: 0 0 auto !important;
-        width: 320px !important;
     }
 
     /* Progress bar */
@@ -546,58 +502,190 @@ def show_home():
     subscribed_ids = set(get_user_subscriptions(user_id))
     my_courses = [s for s in segment_stats if s['id'] in subscribed_ids]
 
+    st.markdown("""
+    <style>
+    .custom-carousel {
+        display: flex;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        gap: 1.5rem;
+        padding-bottom: 24px;
+        margin-bottom: -8px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(108, 99, 255, 0.5) transparent;
+    }
+    .custom-carousel::-webkit-scrollbar { height: 8px; }
+    .custom-carousel::-webkit-scrollbar-track { background: transparent; }
+    .custom-carousel::-webkit-scrollbar-thumb {
+        background-color: rgba(108, 99, 255, 0.5);
+        border-radius: 4px;
+    }
+    
+    .custom-card {
+        min-width: 320px;
+        max-width: 320px;
+        flex: 0 0 320px;
+        background: linear-gradient(135deg, rgba(26, 29, 41, 0.9), rgba(26, 29, 41, 0.6));
+        border: 1px solid rgba(108, 99, 255, 0.12);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .custom-card:hover {
+        border-color: rgba(108, 99, 255, 0.5);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(108, 99, 255, 0.15);
+    }
+    .custom-card-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .custom-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        outline: none;
+        font-family: inherit;
+    }
+    .custom-btn:hover {
+        transform: translateY(-2px);
+    }
+    .btn-primary {
+        background: rgba(108, 99, 255, 0.2);
+        color: #FAFAFA;
+        border-color: rgba(108, 99, 255, 0.5);
+    }
+    .btn-primary:hover {
+        background: rgba(108, 99, 255, 0.4);
+    }
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: #FAFAFA;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+    .btn-disabled {
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.3);
+        cursor: not-allowed;
+        border-color: transparent;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     def render_carousel(title, items, show_empty=False):
-        if not items and not show_empty:
-            return
-            
         st.markdown(f"#### {title}")
-        if not items and show_empty:
-            st.info("You haven't subscribed to any courses yet. Discover and subscribe below!")
-            st.markdown("<br>", unsafe_allow_html=True)
+        if not items:
+            if show_empty:
+                st.info(f"No courses in {title} yet.")
             return
+
+        html_lines = ['<div class="custom-carousel">']
+        for seg in items:
+            seg_pct = (seg["completed_videos"] / seg["total_videos"] * 100) if seg["total_videos"] > 0 else 0
+            watch_hrs = seg["watch_seconds"] / 3600
+            subscribed = seg['id'] in subscribed_ids
             
-        cols = st.columns(len(items))
-        for col, seg in zip(cols, items):
-            with col:
-                seg_pct = (seg["completed_videos"] / seg["total_videos"] * 100) if seg["total_videos"] > 0 else 0
-                watch_hrs = seg["watch_seconds"] / 3600
-                st.markdown(f"""
-                <div class="segment-card-marker" style="display: none;"></div>
-                <div class="segment-icon">{seg['icon']}</div>
-                <div class="segment-name" title="{seg['name']}">{seg['name']}</div>
-                <div class="segment-meta">
-                    {seg['total_videos']} videos · {seg['completed_videos']} completed<br>{watch_hrs:.1f}h watched
-                </div>
-                <div class="progress-outer">
-                    <div class="progress-inner" style="width:{seg_pct}%;"></div>
-                </div>
-                <details class="segment-details">
-                    <summary>Description</summary>
-                    <p>{seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."}</p>
-                </details>
-                """, unsafe_allow_html=True)
+            if subscribed:
+                btn_html = f'''
+                    <button class="custom-btn btn-primary" onclick="window.parent.triggerAction('open_{seg['id']}')">📖 Open</button>
+                    <button class="custom-btn btn-secondary" onclick="window.parent.triggerAction('unsub_{seg['id']}')">Unsubscribe</button>
+                '''
+            else:
+                btn_html = f'''
+                    <button class="custom-btn btn-disabled" disabled>🔒 Open</button>
+                    <button class="custom-btn btn-primary" onclick="window.parent.triggerAction('sub_{seg['id']}')">Subscribe</button>
+                '''
                 
-                # Buttons
-                bcol1, bcol2 = st.columns([1, 1])
-                with bcol1:
-                    if seg['id'] in subscribed_ids:
-                        st.page_link("pages/1_📚_My_Courses.py", label="Open", icon="📖", use_container_width=True)
-                    else:
-                        st.page_link("pages/1_📚_My_Courses.py", label="Open", icon="🔒", disabled=True, use_container_width=True, help="Subscribe to open")
-                with bcol2:
-                    if seg['id'] in subscribed_ids:
-                        if st.button("Unsubscribe", key=f"unsub_{title}_{seg['id']}", use_container_width=True):
-                            unsubscribe_from_segment(user_id, seg['id'])
-                            st.rerun()
-                    else:
-                        if st.button("Subscribe", key=f"sub_{title}_{seg['id']}", use_container_width=True):
-                            subscribe_to_segment(user_id, seg['id'])
-                            st.rerun()
-                            
-        st.markdown("<br>", unsafe_allow_html=True)
+            desc = seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."
+            
+            html_lines.append(f'''
+            <div class="custom-card">
+                <div class="custom-card-top">
+                    <div class="segment-icon">{seg['icon']}</div>
+                    <div class="segment-name" title="{seg['name']}">{seg['name']}</div>
+                    <div class="segment-meta">
+                        {seg['total_videos']} videos · {seg['completed_videos']} completed<br>{watch_hrs:.1f}h watched
+                    </div>
+                    <div class="progress-outer">
+                        <div class="progress-inner" style="width:{seg_pct}%;"></div>
+                    </div>
+                    <details class="segment-details">
+                        <summary>Description</summary>
+                        <p>{desc}</p>
+                    </details>
+                </div>
+                <div class="custom-card-buttons">
+                    {btn_html}
+                </div>
+            </div>
+            ''')
+        html_lines.append('</div>')
+        
+        st.markdown("".join(html_lines), unsafe_allow_html=True)
+        
+        # Render Hidden Streamlit Buttons
+        for seg in items:
+            subscribed = seg['id'] in subscribed_ids
+            if subscribed:
+                if st.button(f"HiddenOpen_{seg['id']}", key=f"open_{title}_{seg['id']}"):
+                    st.switch_page("pages/1_📚_My_Courses.py")
+                if st.button(f"HiddenUnsub_{seg['id']}", key=f"unsub_{title}_{seg['id']}"):
+                    unsubscribe_from_segment(user_id, seg['id'])
+                    st.rerun()
+            else:
+                if st.button(f"HiddenSub_{seg['id']}", key=f"sub_{title}_{seg['id']}"):
+                    subscribe_to_segment(user_id, seg['id'])
+                    st.rerun()
 
     render_carousel("📚 My Courses", my_courses, show_empty=True)
     render_carousel("🌐 All Courses", segment_stats)
+
+    import streamlit.components.v1 as components
+    components.html(
+        """
+        <script>
+        // Hide all buttons that contain 'Hidden'
+        function hideHiddenButtons() {
+            const buttons = window.parent.document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes("HiddenOpen_") || btn.innerText.includes("HiddenSub_") || btn.innerText.includes("HiddenUnsub_")) {
+                    const container = btn.closest('div[data-testid="stButton"]');
+                    if (container) container.style.display = 'none';
+                }
+            });
+        }
+        hideHiddenButtons();
+        setTimeout(hideHiddenButtons, 500); // retry to ensure they are hidden
+        
+        window.parent.triggerAction = function(key) {
+            let textToFind = "";
+            if (key.startsWith("sub_")) textToFind = "HiddenSub_" + key.split("_")[1];
+            if (key.startsWith("unsub_")) textToFind = "HiddenUnsub_" + key.split("_")[1];
+            if (key.startsWith("open_")) textToFind = "HiddenOpen_" + key.split("_")[1];
+            
+            const buttons = window.parent.document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(textToFind)) {
+                    btn.click();
+                }
+            });
+        }
+        </script>
+        """, height=0, width=0
+    )
 
     # ── Leaderboards ──
     st.markdown("#### 🏆 Top Learners")
