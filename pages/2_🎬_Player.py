@@ -165,6 +165,7 @@ render_video_player(
     last_position=last_position,
     title=video["title"],
     youtube_id=video.get("youtube_id"),
+    mime_type=video.get("mime_type", "video/mp4"),
 )
 
 # ── Ask AI ────────────────────────────────────────────────

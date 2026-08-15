@@ -18,7 +18,8 @@ def render_video_player(
     last_position: float = 0,
     title: str = "",
     height: int = 650,
-    youtube_id: str = None
+    youtube_id: str = None,
+    mime_type: str = "video/mp4"
 ):
     """
     Render an embedded Video.js player inside Streamlit.
@@ -39,6 +40,7 @@ def render_video_player(
 
     if youtube_id:
         st.video(f"https://www.youtube.com/watch?v={youtube_id}", start_time=int(last_position))
+        st.markdown(f"**🔗 [Watch directly on YouTube ↗](https://www.youtube.com/watch?v={youtube_id})** (If playback above is disabled)")
         st.info("ℹ️ Progress tracking is limited for YouTube videos. Please use the **Mark as Complete** button below when finished.")
         return
     elif mime_type == 'video/youtube':
