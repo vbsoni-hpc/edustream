@@ -193,7 +193,7 @@ def render_ask_ai_section(video_id, video):
                     with st.spinner("AI is thinking..."):
                         try:
                             # Build context
-                            messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles"}]
+                            messages = [{"role": "system", "content": f"You are a helpful AI tutor. The student is currently watching a video lecture titled '{video['title']}'. Help answer their questions and if asked explain it in simple and intuitive manner and always explaining through first principles.(always reply in english)"}]
                             messages.extend(video_chat_history[-5:])
                             
                             from g4f.client import Client
