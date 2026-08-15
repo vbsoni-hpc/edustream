@@ -505,6 +505,8 @@ def _restore_messages(conn, messages: list):
                 (sender["id"], recipient_id, msg["content"], msg.get("is_read", 0), msg.get("created_at", time.time())),
             )
 
+
+
 # ═══════════════════════════════════════════════════════════
 #  Debounced auto-save
 # ═══════════════════════════════════════════════════════════
