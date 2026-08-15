@@ -509,8 +509,9 @@ def show_home():
         overflow-x: auto;
         flex-wrap: nowrap;
         gap: 1.5rem;
-        padding-bottom: 24px;
-        margin-bottom: -8px;
+        padding-bottom: 16px;
+        margin-top: -8px;
+        margin-bottom: -16px;
         scrollbar-width: thin;
         scrollbar-color: rgba(108, 99, 255, 0.5) transparent;
     }
@@ -586,7 +587,7 @@ def show_home():
     """, unsafe_allow_html=True)
 
     def render_carousel(title, items, show_empty=False):
-        st.markdown(f"#### {title}")
+        st.markdown(f"<h4 style='margin-bottom: 0px;'>{title}</h4>", unsafe_allow_html=True)
         if not items:
             if show_empty:
                 st.info(f"No courses in {title} yet.")
@@ -690,7 +691,7 @@ def show_home():
     )
 
     # ── Leaderboards ──
-    st.markdown("#### 🏆 Top Learners")
+    st.markdown("<h4 style='margin-bottom: 0px; margin-top: 10px;'>🏆 Top Learners</h4>", unsafe_allow_html=True)
     lb_col1, lb_col2 = st.columns(2)
     
     def render_leaderboard(data, title):
