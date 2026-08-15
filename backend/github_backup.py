@@ -287,15 +287,15 @@ async def export_to_github():
 #  Restore: GitHub → JSON → DB
 # ═══════════════════════════════════════════════════════════
 
-async def restore_from_github() -> bool:
+async def restore_from_github() -> tuple[bool, str]:
     """
     Fetch the latest backup from GitHub and restore all data into the database.
     
-    Returns True if a backup was found and restored.
+    Returns (success_bool, error_message).
     """
     if not GITHUB_TOKEN or not GITHUB_REPO:
         logger.info("GitHub credentials not configured, skipping restore.")
-        return False
+        return False, "GitHub credentials not configured"
 
     try:
         headers = {
@@ -307,12 +307,12 @@ async def restore_from_github() -> bool:
         get_resp = requests.get(url, headers=headers)
         if get_resp.status_code != 200:
             logger.info("No backup found in GitHub repo.")
-            return False
+            return False, "No backup found in GitHub repo"
 
         content_b64 = get_resp.json().get("content")
         if not content_b64:
             logger.warning("Backup file found but it has no content.")
-            return False
+            return False, "Backup file found but it has no content"
 
         data_bytes = base64.b64decode(content_b64)
         data = json.loads(data_bytes.decode("utf-8"))
@@ -320,11 +320,13 @@ async def restore_from_github() -> bool:
 
         # Restore data
         _restore_data(data)
-        return True
+        return True, "Success"
 
     except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
         logger.error(f"Failed to restore from GitHub: {e}")
-        return False
+        return False, f"Exception: {str(e)}\n{err_msg}"
 
 
 def _restore_data(data: dict):

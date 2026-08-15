@@ -319,6 +319,12 @@ async def trigger_sync():
     return {"status": "ok", "synced": synced_count}
 
 
+@app.get("/api/force_restore")
+async def api_force_restore():
+    from backend.github_backup import restore_from_github
+    success, msg = await restore_from_github()
+    return {"success": success, "msg": msg}
+
 @app.get("/api/videos")
 async def list_videos():
     videos = get_all_videos()

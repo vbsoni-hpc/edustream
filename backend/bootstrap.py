@@ -33,11 +33,11 @@ async def run_bootstrap():
 
     # Step 2: Restore from GitHub backup
     logger.info("Step 2/4: Restoring backup from GitHub...")
-    restored = await restore_from_github()
+    restored, msg = await restore_from_github()
     if restored:
         logger.info("  ✔ Backup restored successfully")
     else:
-        logger.info("  ℹ No backup found — fresh start")
+        logger.info(f"  ℹ No backup found or restore failed: {msg}")
 
     # Step 3: Sync videos from Telegram channel
     logger.info("Step 3/4: Syncing videos from Telegram channel...")
@@ -46,7 +46,7 @@ async def run_bootstrap():
         videos = await sync_channel()
         synced = 0
         for v in videos:
-            segment_name = v["segment"]
+            segment_name = v.get("segment") or "General"
             icon = DEFAULT_SEGMENT_ICONS.get(segment_name, "📁")
             segment_id = get_or_create_segment(segment_name, icon)
             upsert_video(
