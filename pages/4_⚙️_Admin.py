@@ -220,8 +220,10 @@ else:
             with col3:
                 new_order = st.number_input("Sort Order", value=seg["sort_order"], key=f"seg_order_{seg['id']}")
 
+            new_desc = st.text_input("Description", value=seg.get("description", ""), key=f"seg_desc_{seg['id']}")
+
             if st.button("💾 Save", key=f"seg_save_{seg['id']}"):
-                update_segment(seg["id"], name=new_name, icon=new_icon, sort_order=int(new_order))
+                update_segment(seg["id"], name=new_name, icon=new_icon, description=new_desc, sort_order=int(new_order))
                 st.success(f"Updated segment: {new_icon} {new_name}")
                 st.rerun()
 
@@ -233,9 +235,11 @@ with col_new1:
 with col_new2:
     new_seg_icon = st.text_input("Icon (emoji)", key="new_seg_icon", value="📁", placeholder="📁")
 
+new_seg_desc = st.text_input("Description", key="new_seg_desc", placeholder="e.g. Physics curriculum and lectures.")
+
 if st.button("➕ Add Segment"):
     if new_seg_name:
-        seg_id = get_or_create_segment(new_seg_name, new_seg_icon or "📁")
+        seg_id = get_or_create_segment(new_seg_name, new_seg_icon or "📁", new_seg_desc)
         st.success(f"Created segment: {new_seg_icon} {new_seg_name} (ID: {seg_id})")
         st.rerun()
     else:

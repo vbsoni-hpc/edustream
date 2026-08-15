@@ -127,12 +127,35 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.08);
         border-radius: 4px;
         overflow: hidden;
+        margin-bottom: 12px;
     }
     .progress-inner {
         height: 100%;
         border-radius: 4px;
         background: linear-gradient(90deg, #6C63FF, #a78bfa);
         transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Expandable description */
+    .segment-details {
+        font-size: 13px;
+        color: #D1D5DB;
+        margin-top: 8px;
+    }
+    .segment-details summary {
+        cursor: pointer;
+        color: #a78bfa;
+        font-weight: 600;
+        outline: none;
+        margin-bottom: 4px;
+        user-select: none;
+    }
+    .segment-details p {
+        margin: 4px 0 0 0;
+        line-height: 1.4;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 8px;
+        border-radius: 6px;
     }
 
     /* Hero section */
@@ -314,7 +337,7 @@ def show_auth_page():
     
     with col2:
         st.markdown('<div class="login-title">🎓 EduStream</div>', unsafe_allow_html=True)
-        st.markdown('<div class="login-subtitle">Your premium course platform</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-subtitle"> Your premium course platform</div>', unsafe_allow_html=True)
         
         tab_login, tab_register = st.tabs(["Sign In", "Register"])
     
@@ -451,9 +474,13 @@ def show_home():
                     <div class="progress-outer">
                         <div class="progress-inner" style="width:{seg_pct}%;"></div>
                     </div>
+                    <details class="segment-details">
+                        <summary>Description</summary>
+                        <p>{seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."}</p>
+                    </details>
                 </div>
                 """, unsafe_allow_html=True)
-                st.page_link("pages/1_📚_Courses.py", label=f"Open {seg['name']} Course", icon="📖", use_container_width=True)
+                st.page_link("pages/1_📚_Courses.py", label=f"Open {seg['name']} Course", icon="📖", use_container_width=False)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -462,7 +489,7 @@ def show_home():
     lb_col1, lb_col2 = st.columns(2)
     
     def render_leaderboard(data, title):
-        html = f'<div class="glass-card"><h5 style="margin-top:0; color:#FAFAFA;">{title}</h4>'
+        html = f'<div class="glass-card"><h5 style="margin-top:0; color:#FAFAFA;">{title}</h5>'
         if not data:
             html += '<p style="color:#9CA3AF; font-size:14px;">No activity yet.</p></div>'
             st.markdown(html, unsafe_allow_html=True)

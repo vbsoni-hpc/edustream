@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS segments (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT    UNIQUE NOT NULL,
     icon       TEXT    NOT NULL DEFAULT '📁',
+    description TEXT   NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0
 );
 
@@ -97,7 +98,8 @@ CREATE TABLE IF NOT EXISTS notices (
 _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
     "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0",
-    "CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))"
+    "CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
+    "ALTER TABLE segments ADD COLUMN description TEXT NOT NULL DEFAULT ''"
 ]
 
 
@@ -299,25 +301,27 @@ def get_all_segments() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def get_or_create_segment(name: str, icon: str = "📁") -> int:
+def get_or_create_segment(name: str, icon: str = "📁", description: str = "") -> int:
     with _conn() as c:
         row = c.execute("SELECT id FROM segments WHERE name = ?", (name,)).fetchone()
         if row:
             return row["id"]
         cur = c.execute(
-            "INSERT INTO segments (name, icon) VALUES (?, ?)", (name, icon)
+            "INSERT INTO segments (name, icon, description) VALUES (?, ?, ?)", (name, icon, description)
         )
         c.commit()
         _trigger_backup()
         return cur.lastrowid
 
 
-def update_segment(segment_id: int, name: str = None, icon: str = None, sort_order: int = None):
+def update_segment(segment_id: int, name: str = None, icon: str = None, description: str = None, sort_order: int = None):
     with _conn() as c:
         if name is not None:
             c.execute("UPDATE segments SET name = ? WHERE id = ?", (name, segment_id))
         if icon is not None:
             c.execute("UPDATE segments SET icon = ? WHERE id = ?", (icon, segment_id))
+        if description is not None:
+            c.execute("UPDATE segments SET description = ? WHERE id = ?", (description, segment_id))
         if sort_order is not None:
             c.execute("UPDATE segments SET sort_order = ? WHERE id = ?", (sort_order, segment_id))
         c.commit()
@@ -587,7 +591,7 @@ def get_segment_stats(user_id: int) -> list[dict]:
     with _conn() as c:
         rows = c.execute("""
             SELECT 
-                s.id, s.name, s.icon,
+                s.id, s.name, s.icon, s.description,
                 COUNT(v.id) as total_videos,
                 COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
                 COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
