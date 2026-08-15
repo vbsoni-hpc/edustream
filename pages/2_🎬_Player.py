@@ -198,7 +198,7 @@ with st.container():
                             
                             response = g4f.ChatCompletion.create(
                                 model="gpt-4o-mini",
-                                provider=g4f.Provider.Blackbox,
+                                provider=g4f.Provider.Pollinations,
                                 messages=messages,
                             )
                             video_chat_history.append({"role": "assistant", "content": response})
