@@ -43,6 +43,7 @@ from backend.models import (
     get_user_video_access,
     set_user_video_access,
     update_video_restricted,
+    recover_missing_youtube_ids,
 )
 
 init_db()
@@ -582,3 +583,15 @@ with col_delete:
             if st.button("❌ Cancel", key="cancel_del_msgs"):
                 st.session_state["confirm_delete_messages"] = False
                 st.rerun()
+
+st.markdown("---")
+st.markdown("### 🛠️ Advanced Tools")
+st.markdown("Run specific recovery scripts or maintenance tasks on the server.")
+
+if st.button("🛠️ Fix Missing YouTube IDs", type="secondary"):
+    with st.spinner("Searching YouTube to recover missing IDs... This might take a few seconds."):
+        updates = recover_missing_youtube_ids()
+        if updates > 0:
+            st.success(f"✅ Successfully recovered and mapped {updates} missing YouTube videos!")
+        else:
+            st.info("No missing YouTube IDs found, everything is already mapped.")

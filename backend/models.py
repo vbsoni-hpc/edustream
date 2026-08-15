@@ -624,6 +624,35 @@ def upsert_youtube_video(youtube_id: str, title: str, segment_id: int, duration_
         c.commit()
         return cur.lastrowid
 
+def recover_missing_youtube_ids() -> int:
+    """Uses yt-dlp to search for and recover missing youtube_ids for video/youtube mime_types."""
+    import yt_dlp
+    updates = 0
+    with _conn() as c:
+        videos = c.execute("SELECT id, title, telegram_msg_id FROM videos WHERE mime_type='video/youtube' AND (youtube_id IS NULL OR youtube_id = '')").fetchall()
+        if not videos:
+            return 0
+            
+        ydl_opts = {'quiet': True, 'extract_flat': True, 'default_search': 'ytsearch1'}
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            for v in videos:
+                try:
+                    info = ydl.extract_info(f"ytsearch1:{v['title']}", download=False)
+                    if info and 'entries' in info and len(info['entries']) > 0:
+                        yt_id = info['entries'][0]['id']
+                        expected_msg_id = -(zlib.crc32(yt_id.encode('utf-8')) & 0xffffffff)
+                        
+                        try:
+                            c.execute("UPDATE videos SET youtube_id = ?, telegram_msg_id = ? WHERE id = ?", (yt_id, expected_msg_id, v['id']))
+                            updates += 1
+                        except sqlite3.IntegrityError:
+                            pass # Duplicate msg_id fallback
+                except Exception:
+                    pass
+        c.commit()
+    return updates
+
 # ── Access Control ────────────────────────────────────────
 
 def get_user_segment_access(segment_id: int) -> list[int]:
