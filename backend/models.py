@@ -117,7 +117,7 @@ _MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE segments ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE modules ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE videos ADD COLUMN youtube_id TEXT UNIQUE",
+    "ALTER TABLE videos ADD COLUMN youtube_id TEXT",
     "CREATE TABLE IF NOT EXISTS user_segment_access (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))",
     "CREATE TABLE IF NOT EXISTS user_module_access (user_id INTEGER NOT NULL REFERENCES users(id), module_id INTEGER NOT NULL REFERENCES modules(id), PRIMARY KEY (user_id, module_id))",
     "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'",
