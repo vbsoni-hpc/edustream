@@ -15,6 +15,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import DB_PATH
 
 
+def _trigger_backup():
+    """Trigger a debounced backup to Telegram. Safe to call frequently."""
+    try:
+        from backend.telegram_backup import schedule_backup
+        schedule_backup()
+    except Exception:
+        pass  # Don't let backup failures affect normal operations
+
+
 # ═══════════════════════════════════════════════════════════
 #  Schema Initialisation
 # ═══════════════════════════════════════════════════════════
@@ -148,6 +157,7 @@ def create_user(username: str, password_hash: str, display_name: str = "") -> in
             (username, password_hash, display_name or username),
         )
         c.commit()
+        _trigger_backup()
         return cur.lastrowid
 
 
@@ -165,11 +175,13 @@ def update_user_admin(user_id: int, username: str, display_name: str):
     with _conn() as c:
         c.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (username, display_name, user_id))
         c.commit()
+        _trigger_backup()
 
 def delete_user_admin(user_id: int):
     with _conn() as c:
         c.execute("DELETE FROM users WHERE id=?", (user_id,))
         c.commit()
+        _trigger_backup()
 
 # ── Messages ──────────────────────────────────────────────
 
@@ -184,6 +196,7 @@ def send_message(sender_id: int, recipient_id: int, content: str):
             "DELETE FROM messages WHERE created_at < (strftime('%s', 'now') - (7 * 24 * 60 * 60))"
         )
         c.commit()
+        _trigger_backup()
 
 def get_messages_for_user(user_id: int) -> list[dict]:
     """Get all received messages with sender details."""
@@ -245,12 +258,20 @@ def mark_messages_read(message_ids: list[int]):
         c.execute(f"UPDATE messages SET is_read = 1 WHERE id IN ({placeholders})", message_ids)
         c.commit()
 
+def delete_all_messages():
+    """Delete all messages (group chat + DMs) from the database."""
+    with _conn() as c:
+        c.execute("DELETE FROM messages")
+        c.commit()
+        _trigger_backup()
+
 # ── Notices ───────────────────────────────────────────────
 
 def add_notice(content: str):
     with _conn() as c:
         c.execute("INSERT INTO notices (content) VALUES (?)", (content,))
         c.commit()
+        _trigger_backup()
 
 def get_latest_notices(limit: int = 3) -> list[dict]:
     with _conn() as c:
@@ -266,6 +287,7 @@ def delete_notice(notice_id: int):
     with _conn() as c:
         c.execute("DELETE FROM notices WHERE id = ?", (notice_id,))
         c.commit()
+        _trigger_backup()
 
 
 # ── Segments ──────────────────────────────────────────────
@@ -285,6 +307,7 @@ def get_or_create_segment(name: str, icon: str = "📁") -> int:
             "INSERT INTO segments (name, icon) VALUES (?, ?)", (name, icon)
         )
         c.commit()
+        _trigger_backup()
         return cur.lastrowid
 
 
@@ -297,6 +320,7 @@ def update_segment(segment_id: int, name: str = None, icon: str = None, sort_ord
         if sort_order is not None:
             c.execute("UPDATE segments SET sort_order = ? WHERE id = ?", (sort_order, segment_id))
         c.commit()
+        _trigger_backup()
 
 
 # ── Modules ──────────────────────────────────────────────
@@ -335,6 +359,7 @@ def get_or_create_module(name: str, segment_id: int, icon: str = "📂") -> int:
             (name, segment_id, icon)
         )
         c.commit()
+        _trigger_backup()
         return cur.lastrowid
 
 
@@ -347,6 +372,7 @@ def update_module(module_id: int, name: str = None, icon: str = None, sort_order
         if sort_order is not None:
             c.execute("UPDATE modules SET sort_order = ? WHERE id = ?", (sort_order, module_id))
         c.commit()
+        _trigger_backup()
 
 
 def delete_module(module_id: int):
@@ -355,6 +381,7 @@ def delete_module(module_id: int):
         c.execute("UPDATE videos SET module_id = NULL WHERE module_id = ?", (module_id,))
         c.execute("DELETE FROM modules WHERE id = ?", (module_id,))
         c.commit()
+        _trigger_backup()
 
 
 def move_videos_to_module(video_ids: list[int], module_id: int):
@@ -363,6 +390,7 @@ def move_videos_to_module(video_ids: list[int], module_id: int):
         for vid in video_ids:
             c.execute("UPDATE videos SET module_id = ? WHERE id = ?", (module_id, vid))
         c.commit()
+        _trigger_backup()
 
 
 def unassign_videos_from_module(video_ids: list[int]):
@@ -371,6 +399,7 @@ def unassign_videos_from_module(video_ids: list[int]):
         for vid in video_ids:
             c.execute("UPDATE videos SET module_id = NULL WHERE id = ?", (vid,))
         c.commit()
+        _trigger_backup()
 
 
 # ── Videos ────────────────────────────────────────────────
@@ -498,6 +527,7 @@ def upsert_progress(user_id: int, video_id: int, watch_seconds: float = 0,
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, video_id, watch_seconds, last_position, int(completed), now))
         c.commit()
+        _trigger_backup()
 
 
 def mark_video_complete(user_id: int, video_id: int):
@@ -518,6 +548,7 @@ def mark_video_complete(user_id: int, video_id: int):
                 (user_id, video_id, now)
             )
         c.commit()
+        _trigger_backup()
 
 
 # ── Dashboard / Stats ────────────────────────────────────
@@ -658,6 +689,7 @@ async def async_upsert_progress(user_id: int, video_id: int,
                 VALUES (?, ?, ?, ?, ?)
             """, (user_id, video_id, watch_seconds, last_position, now))
         await db.commit()
+        _trigger_backup()
 
 
 async def async_mark_complete(user_id: int, video_id: int):
@@ -680,6 +712,7 @@ async def async_mark_complete(user_id: int, video_id: int):
                 (user_id, video_id, now)
             )
         await db.commit()
+        _trigger_backup()
 
 
 async def async_get_video_by_msg_id(msg_id: int) -> Optional[dict]:

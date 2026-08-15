@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Run bootstrap: restore backup from Telegram + sync videos
+echo "Running bootstrap (restore + sync)..."
+python -m backend.bootstrap
+echo "Bootstrap complete."
+
 # Start FastAPI server in the background
 echo "Starting FastAPI backend..."
 uvicorn backend.server:app --host 127.0.0.1 --port 8000 &

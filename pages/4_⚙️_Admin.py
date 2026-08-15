@@ -35,6 +35,7 @@ from backend.models import (
     get_all_users_admin,
     update_user_admin,
     delete_user_admin,
+    delete_all_messages,
 )
 
 init_db()
@@ -402,3 +403,53 @@ else:
                 st.markdown(f"**Telegram Msg ID:** {v['telegram_msg_id']}")
                 if v.get("caption"):
                     st.markdown(f"**Caption:** {v['caption'][:200]}")
+
+st.markdown("---")
+
+
+# ═══════════════════════════════════════════════════════════
+#  Data Management (Backup & Cleanup)
+# ═══════════════════════════════════════════════════════════
+
+st.markdown("### 💾 Data Management")
+st.markdown("Backup data to Telegram, delete messages, or force a restore.")
+
+col_backup, col_delete = st.columns(2)
+
+with col_backup:
+    st.markdown("#### ☁️ Telegram Backup")
+    st.caption(
+        "All data (users, progress, course structure) is auto-saved to your "
+        "Telegram Saved Messages every 60 seconds after changes."
+    )
+    if st.button("💾 Force Backup Now", use_container_width=True, type="primary"):
+        with st.spinner("Backing up to Telegram Saved Messages..."):
+            try:
+                from backend.telegram_backup import force_backup_sync
+                force_backup_sync()
+                st.success("✅ Backup saved to Telegram Saved Messages!")
+            except Exception as e:
+                st.error(f"Backup failed: {e}")
+
+with col_delete:
+    st.markdown("#### 🗑️ Delete All Messages")
+    st.caption(
+        "Permanently delete all group chat and DM messages from the database. "
+        "This cannot be undone."
+    )
+    if st.button("🗑️ Delete All Messages", use_container_width=True, type="secondary"):
+        st.session_state["confirm_delete_messages"] = True
+
+    if st.session_state.get("confirm_delete_messages"):
+        st.warning("⚠️ Are you sure? This will delete ALL messages (group chat + DMs).")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✅ Yes, Delete All", type="primary", key="confirm_del_msgs"):
+                delete_all_messages()
+                st.session_state["confirm_delete_messages"] = False
+                st.success("✅ All messages deleted.")
+                st.rerun()
+        with c2:
+            if st.button("❌ Cancel", key="cancel_del_msgs"):
+                st.session_state["confirm_delete_messages"] = False
+                st.rerun()
