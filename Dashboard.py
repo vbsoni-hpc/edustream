@@ -96,17 +96,18 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* Segment card */
-    .segment-card {
+    /* Segment card (Applied to Streamlit Column) */
+    div[data-testid="column"]:has(.segment-card-marker) {
         background: linear-gradient(135deg, rgba(26, 29, 41, 0.9), rgba(26, 29, 41, 0.6));
         border: 1px solid rgba(108, 99, 255, 0.12);
         border-radius: 16px;
         padding: 24px;
-        cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .segment-card:hover {
+    div[data-testid="column"]:has(.segment-card-marker):hover {
         border-color: rgba(108, 99, 255, 0.5);
         transform: translateY(-4px);
         box-shadow: 0 12px 40px rgba(108, 99, 255, 0.15);
@@ -131,20 +132,32 @@ st.markdown("""
     }
     
     /* Carousel CSS via :has() pseudo-class */
-    div[data-testid="stHorizontalBlock"]:has(.segment-card) {
+    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker) {
         overflow-x: auto;
-        flex-wrap: nowrap;
-        padding-bottom: 16px;
+        overflow-y: hidden;
+        flex-wrap: nowrap !important;
+        padding-bottom: 24px;
+        margin-bottom: -8px;
         -ms-overflow-style: none;
-        scrollbar-width: none;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(108, 99, 255, 0.5) transparent;
+        gap: 1.5rem !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card)::-webkit-scrollbar {
-        display: none;
+    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar {
+        height: 8px;
     }
-    div[data-testid="stHorizontalBlock"]:has(.segment-card) > div[data-testid="column"] {
+    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker)::-webkit-scrollbar-thumb {
+        background-color: rgba(108, 99, 255, 0.5);
+        border-radius: 4px;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.segment-card-marker) > div[data-testid="column"] {
         min-width: 320px !important;
         max-width: 320px !important;
         flex: 0 0 auto !important;
+        width: 320px !important;
     }
 
     /* Progress bar */
@@ -549,20 +562,19 @@ def show_home():
                 seg_pct = (seg["completed_videos"] / seg["total_videos"] * 100) if seg["total_videos"] > 0 else 0
                 watch_hrs = seg["watch_seconds"] / 3600
                 st.markdown(f"""
-                <div class="segment-card">
-                    <div class="segment-icon">{seg['icon']}</div>
-                    <div class="segment-name" title="{seg['name']}">{seg['name']}</div>
-                    <div class="segment-meta">
-                        {seg['total_videos']} videos · {seg['completed_videos']} completed<br>{watch_hrs:.1f}h watched
-                    </div>
-                    <div class="progress-outer">
-                        <div class="progress-inner" style="width:{seg_pct}%;"></div>
-                    </div>
-                    <details class="segment-details">
-                        <summary>Description</summary>
-                        <p>{seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."}</p>
-                    </details>
+                <div class="segment-card-marker" style="display: none;"></div>
+                <div class="segment-icon">{seg['icon']}</div>
+                <div class="segment-name" title="{seg['name']}">{seg['name']}</div>
+                <div class="segment-meta">
+                    {seg['total_videos']} videos · {seg['completed_videos']} completed<br>{watch_hrs:.1f}h watched
                 </div>
+                <div class="progress-outer">
+                    <div class="progress-inner" style="width:{seg_pct}%;"></div>
+                </div>
+                <details class="segment-details">
+                    <summary>Description</summary>
+                    <p>{seg.get('description') or f"Access materials and track your progress in the {seg['name']} course module."}</p>
+                </details>
                 """, unsafe_allow_html=True)
                 
                 # Buttons
