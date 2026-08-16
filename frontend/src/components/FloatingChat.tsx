@@ -12,6 +12,7 @@ export function FloatingChat() {
   const [unreadGlobal, setUnreadGlobal] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const lastIdRef = useRef<number | null>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -35,8 +36,8 @@ export function FloatingChat() {
   if (!token || !user) return null;
 
   return (
-    <Draggable handle=".floating-chat-header">
-      <div className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
+    <Draggable handle=".floating-chat-header" nodeRef={nodeRef}>
+      <div ref={nodeRef} className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
         <div className="floating-chat-header" style={{ cursor: 'move', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>EduStream Hangout</span>

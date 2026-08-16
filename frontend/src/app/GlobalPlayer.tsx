@@ -65,8 +65,10 @@ export default function GlobalPlayer() {
     transition: 'all 0.3s ease',
   };
 
+  const nodeRef = useRef<HTMLDivElement>(null);
+
   const content = (
-    <div style={isPiP ? containerStyle : { width: '100%' }}>
+    <div ref={nodeRef} style={isPiP ? containerStyle : { width: '100%' }}>
        {isPiP && (
          <div className="player-drag-handle" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600, cursor: 'move' }}>
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>{video.title}</span>
@@ -111,7 +113,7 @@ export default function GlobalPlayer() {
 
   if (!isPiP && pathname !== '/player') return null;
 
-  return <Draggable handle=".player-drag-handle">{content}</Draggable>;
+  return <Draggable handle=".player-drag-handle" nodeRef={nodeRef}>{content}</Draggable>;
 }
 
 function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: any) {
