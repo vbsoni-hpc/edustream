@@ -77,7 +77,7 @@ export default function GlobalPlayer() {
             <div className="player-drag-handle" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, fontWeight: 600, cursor: 'move', marginRight: 12 }}>
               {video.title}
             </div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div className="nodrag" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
                 style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
