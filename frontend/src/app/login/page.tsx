@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [institute, setInstitute] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await authApi.register(username, password, displayName || username);
+      const res = await authApi.register(username, password, displayName || username, institute);
       login(res.token, {
         id: res.user_id,
         username: res.username,
@@ -150,6 +151,16 @@ export default function LoginPage() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your display name"
+              />
+            </div>
+            <div className="form-group">
+              <label className="label">Institute / School</label>
+              <input
+                className="input"
+                type="text"
+                value={institute}
+                onChange={(e) => setInstitute(e.target.value)}
+                placeholder="Where do you study?"
               />
             </div>
             <div className="form-group">

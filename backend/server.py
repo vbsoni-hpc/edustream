@@ -224,6 +224,7 @@ class AuthRequest(BaseModel):
     username: str
     password: str
     display_name: str = ""
+    institute: str = ""
 
 
 @app.post("/api/auth/register")
@@ -233,7 +234,7 @@ async def register(req: AuthRequest):
         raise HTTPException(400, "Username already taken")
     
     hashed = hash_password(req.password)
-    user_id = create_user(req.username, hashed, req.display_name)
+    user_id = create_user(req.username, hashed, req.display_name, req.institute)
     token = create_access_token(user_id, req.username)
     return {"token": token, "user_id": user_id, "username": req.username}
 
@@ -886,9 +887,9 @@ async def import_youtube(req: YouTubeImportRequest, user: dict = Depends(get_cur
 # ═══════════════════════════════════════════════════════════
 
 @app.get("/api/analytics/daily")
-async def get_daily_analytics(days: int = 30, user: dict = Depends(get_current_user)):
+async def get_daily_analytics(days: int = Query(30, ge=1), user: dict = Depends(get_current_user)):
     from backend.models import get_daily_watch_activity
-    return {"daily": get_daily_watch_activity(user["user_id"], days)}
+    return {"activity": get_daily_watch_activity(user["user_id"], days)}
 
 class TelegramImportRequest(BaseModel):
     channel: str
@@ -938,10 +939,6 @@ async def import_telegram(req: TelegramImportRequest, user: dict = Depends(get_c
         logger.error(f"Telegram import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/analytics/daily")
-async def analytics_daily(days: int = Query(30, ge=1), user: dict = Depends(get_current_user)):
-    data = get_daily_watch_activity(user["user_id"], days)
-    return {"activity": data}
 
 
 @app.get("/api/analytics/segments")

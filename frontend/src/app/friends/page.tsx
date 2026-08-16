@@ -119,11 +119,11 @@ function FriendsContent() {
 
       <div className="grid-2">
         {/* Left column: Content */}
-        <div>
+        <div className="glass-card-static" style={{ padding: 0, overflow: 'hidden' }}>
           {tab === 'friends' && (
             <>
               {friends.length === 0 ? (
-                <div className="glass-card-static" style={{ textAlign: 'center', padding: 32 }}>
+                <div style={{ textAlign: 'center', padding: 32 }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>
                   <p style={{ color: 'var(--text-secondary)' }}>No friends yet. Find people to study with!</p>
                   <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setTab('find')}>
@@ -131,27 +131,25 @@ function FriendsContent() {
                   </button>
                 </div>
               ) : (
-                <div className="presence-list">
+                <div>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-card)', fontWeight: 600, background: 'var(--bg-input)' }}>All Friends ({friends.length})</div>
                   {friends.map(f => (
-                    <div key={f.id} className="presence-item" style={{ cursor: 'default' }}>
-                      <Link href={`/profile/${f.username}`} className="presence-avatar" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        {f.is_studying ? <span className="online-dot-pulse" /> :
-                         f.is_online ? <span className="online-dot-pulse" style={{ background: '#34D399' }} /> : null}
-                        {(f.display_name || '?')[0].toUpperCase()}
+                    <div key={f.id} className="fb-activity-item" style={{ padding: '16px 20px', alignItems: 'center' }}>
+                      <Link href={`/profile/${f.username}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <div className="fb-activity-icon" style={{ background: 'var(--primary)', color: 'white' }}>
+                          {(f.display_name || '?')[0].toUpperCase()}
+                        </div>
                       </Link>
-                      <div className="presence-info" style={{ flex: 1 }}>
+                      <div className="fb-activity-content">
                         <Link href={`/profile/${f.username}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                          <div className="presence-name">{f.display_name}</div>
-                          <div className="presence-course">
-                            {f.is_studying ? `${f.segment_icon || '📚'} ${f.segment_name || 'Studying'}` :
-                             f.is_online ? '🟢 Online' : '⚫ Offline'}
-                            {f.current_streak > 0 && <span style={{ marginLeft: 8 }}>🔥 {f.current_streak}d</span>}
+                          <div className="fb-activity-title">{f.display_name}</div>
+                          <div className="fb-activity-meta">
+                            {f.is_studying ? `Studying ${f.segment_name}` : f.is_online ? 'Online' : 'Offline'}
                           </div>
                         </Link>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, color: 'var(--primary-light)' }}>⚡{f.total_xp || 0}</span>
-                        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => handleRemove(f.id)}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleRemove(f.id)}>
                           Remove
                         </button>
                       </div>
@@ -165,18 +163,18 @@ function FriendsContent() {
           {tab === 'requests' && (
             <>
               {incoming.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <h4 className="section-title">Incoming Requests</h4>
+                <div>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-card)', fontWeight: 600, background: 'var(--bg-input)' }}>Respond to Friend Requests</div>
                   {incoming.map(req => (
-                    <div key={req.request_id} className="presence-item">
-                      <div className="presence-avatar">{(req.display_name || '?')[0].toUpperCase()}</div>
-                      <div className="presence-info" style={{ flex: 1 }}>
-                        <div className="presence-name">{req.display_name}</div>
-                        <div className="presence-course">@{req.username}</div>
+                    <div key={req.request_id} className="fb-activity-item" style={{ padding: '16px 20px', alignItems: 'center' }}>
+                      <div className="fb-activity-icon">{(req.display_name || '?')[0].toUpperCase()}</div>
+                      <div className="fb-activity-content">
+                        <div className="fb-activity-title">{req.display_name}</div>
+                        <div className="fb-activity-meta">@{req.username}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn btn-primary btn-sm" onClick={() => handleAccept(req.request_id)}>Accept</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleReject(req.request_id)}>Decline</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleAccept(req.request_id)}>Confirm</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleReject(req.request_id)}>Delete</button>
                       </div>
                     </div>
                   ))}
@@ -184,21 +182,21 @@ function FriendsContent() {
               )}
               {sent.length > 0 && (
                 <div>
-                  <h4 className="section-title">Sent Requests</h4>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-card)', fontWeight: 600, background: 'var(--bg-input)' }}>Sent Requests</div>
                   {sent.map(req => (
-                    <div key={req.request_id} className="presence-item">
-                      <div className="presence-avatar">{(req.display_name || '?')[0].toUpperCase()}</div>
-                      <div className="presence-info" style={{ flex: 1 }}>
-                        <div className="presence-name">{req.display_name}</div>
-                        <div className="presence-course">@{req.username} · Pending</div>
+                    <div key={req.request_id} className="fb-activity-item" style={{ padding: '16px 20px', alignItems: 'center' }}>
+                      <div className="fb-activity-icon">{(req.display_name || '?')[0].toUpperCase()}</div>
+                      <div className="fb-activity-content">
+                        <div className="fb-activity-title">{req.display_name}</div>
+                        <div className="fb-activity-meta">@{req.username} · Pending</div>
                       </div>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleReject(req.request_id)}>Cancel</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleReject(req.request_id)}>Cancel Request</button>
                     </div>
                   ))}
                 </div>
               )}
               {incoming.length === 0 && sent.length === 0 && (
-                <div className="glass-card-static" style={{ textAlign: 'center', padding: 32 }}>
+                <div style={{ textAlign: 'center', padding: 32 }}>
                   <p style={{ color: 'var(--text-secondary)' }}>No pending requests.</p>
                 </div>
               )}
@@ -207,30 +205,35 @@ function FriendsContent() {
 
           {tab === 'find' && (
             <>
-              <div className="form-group" style={{ marginBottom: 16 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-card)', background: 'var(--bg-input)' }}>
                 <input
                   className="input"
-                  placeholder="Search by name or username..."
+                  placeholder="Search for people..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  style={{ background: 'var(--bg-card)' }}
                 />
               </div>
-              <div className="presence-list">
+              <div>
                 {filteredUsers.slice(0, 20).map(u => (
-                  <div key={u.id} className="presence-item">
-                    <Link href={`/profile/${u.username}`} className="presence-avatar" style={{ textDecoration: 'none', color: 'inherit' }}>
-                      {(u.display_name || '?')[0].toUpperCase()}
+                  <div key={u.id} className="fb-activity-item" style={{ padding: '16px 20px', alignItems: 'center' }}>
+                    <Link href={`/profile/${u.username}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      <div className="fb-activity-icon">
+                        {(u.display_name || '?')[0].toUpperCase()}
+                      </div>
                     </Link>
-                    <div className="presence-info" style={{ flex: 1 }}>
-                      <div className="presence-name">{u.display_name}</div>
-                      <div className="presence-course">@{u.username}</div>
+                    <div className="fb-activity-content">
+                      <div className="fb-activity-title">{u.display_name}</div>
+                      <div className="fb-activity-meta">@{u.username}</div>
                     </div>
                     {sentIds.has(u.id) ? (
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Pending</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Request Sent</span>
                     ) : incomingIds.has(u.id) ? (
-                      <span style={{ fontSize: 12, color: 'var(--success)' }}>Wants to connect!</span>
+                      <span style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Respond to Request</span>
                     ) : (
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleAddFriend(u.id)}>Add Friend</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleAddFriend(u.id)}>
+                        <span style={{ marginRight: 4 }}>+</span> Add Friend
+                      </button>
                     )}
                   </div>
                 ))}

@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at      REAL    NOT NULL DEFAULT (strftime('%s','now')),
     last_active     REAL    NOT NULL DEFAULT 0,
     is_admin        INTEGER NOT NULL DEFAULT 0,
-    current_video_id INTEGER
+    current_video_id INTEGER,
+    institute       TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -194,6 +195,7 @@ _MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER REFERENCES segments(id), module_id INTEGER REFERENCES modules(id), video_id INTEGER REFERENCES videos(id), timestamp_sec REAL, content TEXT NOT NULL, parent_id INTEGER REFERENCES discussions(id), created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
     "CREATE TABLE IF NOT EXISTS study_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id INTEGER NOT NULL REFERENCES segments(id), video_id INTEGER REFERENCES videos(id), created_by INTEGER NOT NULL REFERENCES users(id), title TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 1, video_position REAL NOT NULL DEFAULT 0, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
     "CREATE TABLE IF NOT EXISTS study_session_members (session_id INTEGER NOT NULL REFERENCES study_sessions(id), user_id INTEGER NOT NULL REFERENCES users(id), joined_at REAL NOT NULL DEFAULT (strftime('%s','now')), PRIMARY KEY (session_id, user_id))",
+    "ALTER TABLE users ADD COLUMN institute TEXT NOT NULL DEFAULT ''",
 ]
 
 
@@ -256,11 +258,11 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def create_user(username: str, password_hash: str, display_name: str = "") -> int:
+def create_user(username: str, password_hash: str, display_name: str = "", institute: str = "") -> int:
     with _conn() as c:
         cur = c.execute(
-            "INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)",
-            (username, password_hash, display_name or username),
+            "INSERT INTO users (username, password_hash, display_name, institute) VALUES (?, ?, ?, ?)",
+            (username, password_hash, display_name or username, institute),
         )
         c.commit()
         _trigger_backup()

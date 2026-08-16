@@ -143,7 +143,18 @@ function Dashboard() {
             <div className="stat-pill-label">Watch Time</div>
           </div>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+          <Link href={`/profile/${user?.username}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '14px', textAlign: 'right' }}>{user?.username}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>{user?.display_name}</div>
+              </div>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                {user?.display_name?.[0]?.toUpperCase() || '?'}
+              </div>
+            </div>
+          </Link>
           <button className="btn btn-secondary upload-course-btn" onClick={() => setShowImport(true)}>
             ➕ <span className="btn-text">Upload Course</span>
           </button>

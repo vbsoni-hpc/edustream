@@ -5,51 +5,67 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* Core palette */
-  --primary: #6C63FF;
-  --primary-light: #a78bfa;
-  --primary-hover: #7B73FF;
-  --primary-dark: #5B54E0;
-  --primary-glow: rgba(108, 99, 255, 0.3);
+  /* Core palette (Early Facebook Light Mode) */
+  --primary: #3b5998;
+  --primary-light: #5B7BB5;
+  --primary-hover: #2d4373;
+  --primary-dark: #1e2e4f;
+  --primary-glow: rgba(59, 89, 152, 0.1);
 
   /* Surfaces */
-  --bg-body: #0E1117;
-  --bg-card: rgba(26, 29, 41, 0.9);
-  --bg-card-hover: rgba(26, 29, 41, 0.95);
-  --bg-sidebar: rgba(14, 17, 23, 0.98);
-  --bg-input: rgba(30, 34, 50, 0.8);
+  --bg-body: #F9FAFB;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F9FAFB;
+  --bg-sidebar: #FFFFFF;
+  --bg-input: #FFFFFF;
 
   /* Borders */
-  --border-card: rgba(108, 99, 255, 0.15);
-  --border-card-hover: rgba(108, 99, 255, 0.4);
-  --border-input: rgba(108, 99, 255, 0.2);
+  --border-card: #F3F4F6;
+  --border-card-hover: #E5E7EB;
+  --border-input: #F3F4F6;
 
   /* Text */
-  --text-primary: #FAFAFA;
+  --text-primary: #4B5563;
   --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  --text-accent: #a78bfa;
+  --text-muted: #D1D5DB;
+  --text-accent: #3b5998;
 
   /* Semantic */
-  --success: #34D399;
-  --success-bg: rgba(52, 211, 153, 0.15);
-  --success-border: rgba(16, 185, 129, 0.2);
-  --danger: #EF4444;
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --danger-border: rgba(239, 68, 68, 0.4);
+  --success: #31A24C;
+  --success-bg: rgba(49, 162, 76, 0.15);
+  --success-border: #31A24C;
+  --danger: #F02849;
+  --danger-bg: rgba(240, 40, 73, 0.1);
+  --danger-border: #F02849;
   --warning: #F59E0B;
-  --info: #3B82F6;
+  --info: #3b5998;
 
   /* Spacing */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-round: 9999px;
 
   /* Transitions */
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-fast: all 0.2s ease;
+  --transition: all 0.2s ease;
+  --transition-fast: all 0.1s ease;
+}
+
+[data-theme="dark"] {
+  --bg-body: #18191A;
+  --bg-card: #242526;
+  --bg-card-hover: #3A3B3C;
+  --bg-sidebar: #242526;
+  --bg-input: #3A3B3C;
+
+  --border-card: #3E4042;
+  --border-card-hover: #4E5052;
+  --border-input: #3E4042;
+
+  --text-primary: #E4E6EB;
+  --text-secondary: #B0B3B8;
+  --text-muted: #8A8D91;
 }
 
 /* ── Reset & Global ─────────────────────────────────────── */
@@ -79,10 +95,10 @@ a {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(108, 99, 255, 0.4);
+  background: rgba(59, 89, 152, 0.4);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(108, 99, 255, 0.6); }
+::-webkit-scrollbar-thumb:hover { background: rgba(59, 89, 152, 0.6); }
 
 /* ── Layout ─────────────────────────────────────────────── */
 
@@ -133,9 +149,7 @@ a {
 .sidebar-logo {
   font-size: 20px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--text-primary), var(--primary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
   margin-bottom: 8px;
   letter-spacing: -0.5px;
 }
@@ -254,19 +268,18 @@ a {
 }
 
 .glass-card-static {
-  background: linear-gradient(135deg, var(--bg-card), rgba(26, 29, 41, 0.6));
+  background: var(--bg-card);
   border: 1px solid var(--border-card);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: 24px;
-  backdrop-filter: blur(10px);
 }
 
 /* ── Stat Card ──────────────────────────────────────────── */
 
 .stat-card {
-  background: linear-gradient(135deg, rgba(26, 29, 41, 0.95), var(--bg-input));
-  border: 1px solid rgba(108, 99, 255, 0.2);
-  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
   padding: 20px 24px;
   text-align: center;
   transition: var(--transition);
@@ -280,9 +293,7 @@ a {
 .stat-value {
   font-size: 36px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
   line-height: 1.2;
 }
 
@@ -300,9 +311,7 @@ a {
 .hero-title {
   font-size: 42px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-light) 50%, var(--primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
   margin-bottom: 8px;
   line-height: 1.2;
 }
@@ -333,23 +342,21 @@ a {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: var(--primary);
   color: white;
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-hover), var(--primary));
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--primary-glow);
+  background: var(--primary-hover);
 }
 
 .btn-secondary {
-  background: rgba(108, 99, 255, 0.1);
-  border: 1px solid rgba(108, 99, 255, 0.3);
-  color: var(--primary-light);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-primary);
 }
 .btn-secondary:hover {
-  background: rgba(108, 99, 255, 0.2);
-  border-color: rgba(108, 99, 255, 0.5);
+  background: var(--bg-card-hover);
+  border-color: var(--border-card-hover);
 }
 
 .btn-ghost {
@@ -806,7 +813,166 @@ a {
   line-height: 1.6;
 }
 
-/* ── Animations ─────────────────────────────────────────── */
+/* ── Facebook Style Profile ───────────────────────────────── */
+
+.fb-profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.fb-profile-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  position: relative;
+  min-height: 200px;
+}
+
+.fb-cover-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(to right, var(--bg-body), var(--border-card));
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+  border-bottom: 1px solid var(--border-card);
+}
+
+.fb-profile-avatar-wrapper {
+  position: relative;
+  z-index: 2;
+  margin-top: 60px;
+}
+
+.fb-profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--radius-round);
+  background: var(--primary);
+  border: 4px solid var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 800;
+  color: white;
+}
+
+.fb-profile-info {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  padding-bottom: 8px;
+}
+
+.fb-profile-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.fb-profile-handle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.fb-profile-actions {
+  position: relative;
+  z-index: 2;
+  padding-bottom: 8px;
+}
+
+.fb-profile-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.fb-profile-sidebar {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fb-profile-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fb-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-card);
+}
+
+.fb-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.fb-stat-icon {
+  width: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.fb-activity-item {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-card);
+}
+
+.fb-activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fb-activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.fb-activity-content {
+  flex: 1;
+}
+
+.fb-activity-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.fb-activity-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }

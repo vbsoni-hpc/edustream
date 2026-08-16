@@ -12,7 +12,6 @@ const navItems = [
   { href: '/', icon: '🏠', label: 'Dashboard' },
   { href: '/courses', icon: '📚', label: 'My Courses' },
   { href: '/player', icon: '🎬', label: 'Player' },
-  { href: '/learning', icon: '📊', label: 'My Learning' },
   { href: '/friends', icon: '👥', label: 'Friends' },
   { href: '/study-session', icon: '📡', label: 'Study Sessions' },
 ];
@@ -26,6 +25,20 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme') || 'light';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  };
 
   // Load initial collapsed state
   useEffect(() => {
@@ -112,44 +125,17 @@ export default function Sidebar() {
       </nav>
 
 
-      {!isCollapsed ? (
-        <div style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 0, paddingTop: 16, flex: 1, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-             {unreadCount > 0 && <span style={{ background: 'var(--danger)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 'bold' }}>{unreadCount} New</span>}
-          </div>
-          <MessagingSidebar />
-        </div>
-      ) : (
-        <div style={{ padding: '0 16px', flex: 1, marginTop: 16, display: 'flex', justifyContent: 'center' }}>
-          <button 
-            onClick={() => setIsCollapsed(false)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem', position: 'relative' }}
-            title="Open Inbox"
-          >
-            <svg style={{width: 24, height: 24}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-            {unreadCount > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -4, width: 10, height: 10,
-                background: 'var(--danger)', borderRadius: '50%',
-                border: '2px solid var(--bg-card)'
-              }} />
-            )}
-          </button>
-        </div>
-      )}
-
       <div className="sidebar-user" style={{ marginTop: isCollapsed ? 'auto' : 16 }}>
 
-        <div className="sidebar-user-info">
-          <div className="sidebar-avatar">{initial}</div>
-          <div>
-            <div className="sidebar-user-name">{user.display_name}</div>
-            <div className="sidebar-user-handle">@{user.username}</div>
-          </div>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary btn-sm" onClick={toggleTheme} style={{ flex: 1, padding: '6px 4px' }} title="Toggle Theme">
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+          <button className="btn btn-danger btn-sm" onClick={logout} style={{ flex: 3 }}>
+            Logout
+          </button>
         </div>
-        <button className="btn btn-danger btn-sm btn-full" onClick={logout}>
-          Logout
-        </button>
       </div>
     </aside>
   );

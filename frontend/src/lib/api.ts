@@ -50,11 +50,11 @@ export const authApi = {
       }
     ),
 
-  register: (username: string, password: string, display_name: string) =>
+  register: (username: string, password: string, display_name: string, institute: string = '') =>
     request<{ token: string; user_id: number; username: string }>(
       '/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ username, password, display_name }),
+        body: JSON.stringify({ username, password, display_name, institute }),
       }
     ),
 };
@@ -317,11 +317,6 @@ export const adminApi = {
     request<{ status: string; synced: number }>('/api/sync', { method: 'POST', token }),
 };
 
-// ── Users ─────────────────────────────────────────────────
-export const usersApi = {
-  getAll: (token: string) =>
-    request<{ users: any[] }>('/api/users', { token }),
-};
 
 // ── Presence ──────────────────────────────────────────────
 export const presenceApi = {

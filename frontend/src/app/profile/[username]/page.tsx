@@ -101,94 +101,132 @@ function ProfileContent() {
   };
 
   return (
-    <div className="animate-fade-in">
-      {/* Profile Header */}
-      <div className="profile-header">
-        <div className="profile-avatar-large">
-          {profile.is_studying && <span className="online-dot-pulse profile-status-dot" />}
-          {(profile.display_name || '?')[0].toUpperCase()}
+    <div className="fb-profile-container animate-fade-in">
+      {/* Profile Cover & Header */}
+      <div className="fb-profile-header">
+        <div className="fb-cover-photo" />
+        
+        <div className="fb-profile-avatar-wrapper">
+          <div className="fb-profile-avatar">
+            {(profile.display_name || '?')[0].toUpperCase()}
+          </div>
+          {profile.is_studying && <span className="online-dot-pulse" style={{ position: 'absolute', bottom: 12, right: 12, width: 20, height: 20, border: '3px solid var(--bg-card)' }} />}
         </div>
-        <div className="profile-info">
-          <h1 className="profile-name">{profile.display_name}</h1>
-          <p className="profile-handle">@{profile.username}</p>
-          <p className="profile-status">{statusText}</p>
-          {profile.current_video && (
-            <div className="profile-studying">
-              {profile.current_video.segment_icon} {profile.current_video.segment_name} — {profile.current_video.title}
-            </div>
-          )}
+        
+        <div className="fb-profile-info">
+          <h1 className="fb-profile-name">{profile.display_name}</h1>
+          <p className="fb-profile-handle">
+            @{profile.username} • {profile.level} Lvl 
+            {profile.institute && <span> • 🏫 {profile.institute}</span>}
+          </p>
         </div>
-        <div className="profile-actions">
+        
+        <div className="fb-profile-actions">
           {friendshipButton()}
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="profile-stats-grid">
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">🔥 {profile.current_streak}</div>
-          <div className="profile-stat-label">Day Streak</div>
-          <div className="profile-stat-sub">Longest: {profile.longest_streak}d</div>
-        </div>
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">⚡ {profile.total_xp}</div>
-          <div className="profile-stat-label">Total XP</div>
-          <div className="profile-stat-sub">Level {profile.level}</div>
-        </div>
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">✅ {profile.completed_lectures}</div>
-          <div className="profile-stat-label">Lectures Done</div>
-        </div>
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">🎓 {profile.completed_courses}</div>
-          <div className="profile-stat-label">Courses Done</div>
-        </div>
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">⏱️ {profile.total_watch_hours}h</div>
-          <div className="profile-stat-label">Watch Time</div>
-        </div>
-        <div className="profile-stat-card">
-          <div className="profile-stat-value">📚 {profile.courses_touched}</div>
-          <div className="profile-stat-label">Courses Explored</div>
-        </div>
-      </div>
+      <div className="fb-profile-body">
+        {/* Left Column (Sidebar) */}
+        <div className="fb-profile-sidebar">
+          
+          {/* About / Intro */}
+          <div className="glass-card-static">
+            <h3 className="fb-card-title">Intro</h3>
+            <div className="fb-stat-row">
+              <span className="fb-stat-icon">🎓</span>
+              <span><strong>{profile.completed_courses}</strong> courses completed</span>
+            </div>
+            <div className="fb-stat-row">
+              <span className="fb-stat-icon">✅</span>
+              <span><strong>{profile.completed_lectures}</strong> lectures done</span>
+            </div>
+            <div className="fb-stat-row">
+              <span className="fb-stat-icon">⏱️</span>
+              <span><strong>{profile.total_watch_hours}</strong> hours watched</span>
+            </div>
+            <div className="fb-stat-row">
+              <span className="fb-stat-icon">🔥</span>
+              <span><strong>{profile.current_streak}</strong> day streak (Best: {profile.longest_streak})</span>
+            </div>
+            
+            <div style={{ marginTop: 16 }}>
+              <div className="flex-between" style={{ marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <span>XP Progress</span>
+                <span>{profile.total_xp % 500}/500 XP</span>
+              </div>
+              <div className="progress-outer" style={{ height: 6 }}>
+                <div className="progress-inner" style={{ width: `${(profile.total_xp % 500) / 5}%`, background: 'var(--primary)' }} />
+              </div>
+            </div>
+          </div>
 
-      {/* XP Progress Bar */}
-      <div className="glass-card-static" style={{ marginTop: 24 }}>
-        <div className="flex-between" style={{ marginBottom: 8 }}>
-          <span style={{ fontWeight: 600 }}>Level {profile.level}</span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            {profile.total_xp % 500}/500 XP to Level {profile.level + 1}
-          </span>
+          {/* Friends Preview (Mock for now, could load real friends later) */}
+          <div className="glass-card-static">
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-card)', paddingBottom: 12, marginBottom: 12 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 600 }}>Friends</h3>
+              <span style={{ color: 'var(--primary)', fontSize: 14, cursor: 'pointer' }}>See All</span>
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 14, textAlign: 'center', padding: '16px 0' }}>
+              Friends list is private
+            </div>
+          </div>
+          
         </div>
-        <div className="progress-outer" style={{ height: 10 }}>
-          <div className="progress-inner" style={{ width: `${(profile.total_xp % 500) / 5}%`, background: 'linear-gradient(90deg, var(--primary), #a78bfa)' }} />
-        </div>
-      </div>
 
-      {/* Enrolled Courses */}
-      {profile.enrolled_courses && profile.enrolled_courses.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h4 className="section-title">📚 Currently Learning</h4>
-          <div className="carousel">
-            {profile.enrolled_courses.map((course: any) => {
+        {/* Right Column (Wall / Activity) */}
+        <div className="fb-profile-main">
+          <div className="glass-card-static">
+            <h3 className="fb-card-title">Activity Feed</h3>
+            
+            {profile.current_video && (
+              <div className="fb-activity-item">
+                <div className="fb-activity-icon">🟢</div>
+                <div className="fb-activity-content">
+                  <div className="fb-activity-title">
+                    {profile.display_name} is studying {profile.current_video.segment_name}
+                  </div>
+                  <div className="fb-activity-meta">Right now</div>
+                  <div style={{ marginTop: 8, padding: 12, background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--primary)' }}>
+                    <strong>{profile.current_video.title}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile.enrolled_courses && profile.enrolled_courses.map((course: any) => {
               const pct = course.total_videos > 0 ? (course.completed_videos / course.total_videos * 100) : 0;
               return (
-                <div key={course.id} className="course-card" style={{ minWidth: 200 }}>
-                  <div className="course-card-icon">{course.icon}</div>
-                  <div className="course-card-name">{course.name}</div>
-                  <div className="course-card-meta">
-                    {course.completed_videos}/{course.total_videos} lectures · {Math.round(pct)}%
-                  </div>
-                  <div className="progress-outer" style={{ marginTop: 8 }}>
-                    <div className="progress-inner" style={{ width: `${pct}%` }} />
+                <div key={course.id} className="fb-activity-item">
+                  <div className="fb-activity-icon">{course.icon}</div>
+                  <div className="fb-activity-content">
+                    <div className="fb-activity-title">
+                      {profile.display_name} enrolled in {course.name}
+                    </div>
+                    <div className="fb-activity-meta">Recently</div>
+                    <div style={{ marginTop: 8 }}>
+                      <div className="flex-between" style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                        <span>Course Progress</span>
+                        <span>{Math.round(pct)}%</span>
+                      </div>
+                      <div className="progress-outer" style={{ height: 6 }}>
+                        <div className="progress-inner" style={{ width: `${pct}%`, background: 'var(--success)' }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
             })}
+            
+            {(!profile.enrolled_courses || profile.enrolled_courses.length === 0) && !profile.current_video && (
+              <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)' }}>
+                No recent activity to show.
+              </div>
+            )}
+            
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
