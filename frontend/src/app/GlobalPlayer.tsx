@@ -9,12 +9,13 @@ import { useGlobalPlayer } from './GlobalPlayerContext';
 import { useAuth } from '@/lib/auth';
 import { coursesApi, progressApi } from '@/lib/api';
 import { formatDuration } from '@/lib/utils';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function GlobalPlayer() {
   const { videoId, isPiP, setIsPiP, setVideoId, mountNode, video, setVideo } = useGlobalPlayer();
   const { token } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -57,52 +58,48 @@ export default function GlobalPlayer() {
 
 
   const content = (
-    <div ref={nodeRef} className={isPiP ? "pip-container" : ""} style={!isPiP ? { width: '100%' } : {}}>
+    <div ref={nodeRef} className={isPiP ? "pip-container" : ""} style={!isPiP ? { width: '100%', height: '100%' } : {}}>
        {isPiP && (
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#1A1D29' }}>
-            <div className="player-drag-handle" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, fontWeight: 600, cursor: 'move', marginRight: 12 }}>
-              {video.title}
+         <div className="player-drag-handle" style={{
+           padding: '12px 16px',
+           background: 'var(--surface-light)',
+           borderBottom: '1px solid rgba(255,255,255,0.05)',
+           display: 'flex',
+           justifyContent: 'space-between',
+           alignItems: 'center',
+           cursor: 'grab'
+         }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {isCollapsed ? "Video Playing" : "Now Playing"}
             </div>
-            <div className="nodrag" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
-                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
-                title={isCollapsed ? "Expand Video" : "Collapse Video"}
-              >
-                {isCollapsed ? 
-                  <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> : 
-                  <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4"/></svg>
-                }
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsPiP(false); window.location.href='/player'; }} 
-                style={{ background: 'transparent', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', padding: 0, display: 'flex' }}
-                title="Fullscreen"
-              >
-                <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setVideoId(0); }} 
-                style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: 0, display: 'flex' }}
-                title="Close"
-              >
-                <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
+            <div className="nodrag" style={{ display: 'flex', gap: 8 }}>
+               <button onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px' }}>
+                 {isCollapsed ? "Expand" : "Collapse"}
+               </button>
+               {!isCollapsed && (
+                 <button onClick={(e) => { e.stopPropagation(); setIsPiP(false); router.push('/player'); }} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px' }}>
+                   Fullscreen
+                 </button>
+               )}
+               <button onClick={(e) => { e.stopPropagation(); setVideo(null); }} className="btn btn-secondary btn-sm" style={{ padding: '2px 8px' }}>
+                 Close
+               </button>
             </div>
          </div>
        )}
        
-       <div style={{ 
+       <div className="nodrag" style={{ 
          background: '#000', 
          borderRadius: isPiP ? 0 : 16, 
          overflow: 'hidden', 
          position: isCollapsed ? 'absolute' : 'relative',
          left: isCollapsed ? -9999 : 'auto',
          width: isCollapsed ? 350 : '100%',
+         height: !isPiP ? '100%' : 'auto',
          opacity: isCollapsed ? 0 : 1
        }}>
          {isYoutube ? (
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: !isPiP ? '100%' : 0 }}>
               <iframe
                 src={`https://www.youtube.com/embed/${video.youtube_id}?start=${Math.floor(lastPosition)}`}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
@@ -125,16 +122,23 @@ export default function GlobalPlayer() {
     </div>
   );
 
-  if (!isPiP && pathname === '/player') {
-    if (mountNode) {
-      return createPortal(content, mountNode);
-    }
-    return null; // Wait for mount node
-  }
+  const targetNode = (!isPiP && pathname === '/player' && mountNode) ? mountNode : document.body;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
-  if (!isPiP && pathname !== '/player') return null;
-
-  return <Draggable handle=".player-drag-handle" cancel=".nodrag" nodeRef={nodeRef}>{content}</Draggable>;
+  // By using createPortal consistently, React moves the DOM node instead of remounting it,
+  // preventing iframe reloads when toggling between PiP and inline mode.
+  return createPortal(
+    <Draggable 
+      handle=".player-drag-handle" 
+      cancel=".nodrag" 
+      nodeRef={nodeRef}
+      disabled={!isPiP || isMobile}
+      position={!isPiP ? {x: 0, y: 0} : undefined}
+    >
+      {content}
+    </Draggable>,
+    targetNode
+  );
 }
 
 function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: any) {
