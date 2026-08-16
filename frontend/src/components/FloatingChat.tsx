@@ -10,9 +10,25 @@ import Draggable from 'react-draggable';
 export function FloatingChat() {
   const { token, user } = useAuth();
   const [unreadGlobal, setUnreadGlobal] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsedState] = useState(true);
   const lastIdRef = useRef<number | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('chat_collapsed');
+      if (stored !== null) {
+        setIsCollapsedState(stored === 'true');
+      }
+    }
+  }, []);
+
+  const setIsCollapsed = (val: boolean) => {
+    setIsCollapsedState(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chat_collapsed', String(val));
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -36,7 +52,7 @@ export function FloatingChat() {
   if (!token || !user) return null;
 
   return (
-    <Draggable handle=".floating-chat-header" nodeRef={nodeRef}>
+    <Draggable handle=".floating-chat-header" cancel=".nodrag" nodeRef={nodeRef}>
       <div ref={nodeRef} className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
         <div className="floating-chat-header" style={{ cursor: 'move', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -45,13 +61,18 @@ export function FloatingChat() {
               <span style={{ width: 10, height: 10, background: 'var(--danger)', borderRadius: '50%' }} title="New messages" />
             )}
           </div>
-          <button 
-            onClick={() => { setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
-            style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}
-            title={isCollapsed ? "Expand" : "Collapse"}
-          >
-            {isCollapsed ? '+' : '−'}
-          </button>
+          <div className="nodrag" style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
+              style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
+              title={isCollapsed ? "Expand" : "Collapse"}
+            >
+              {isCollapsed ? 
+                <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> : 
+                <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4"/></svg>
+              }
+            </button>
+          </div>
         </div>
         {!isCollapsed && (
           <div className="floating-chat-body">
