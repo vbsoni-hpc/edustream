@@ -235,10 +235,10 @@ async def login(req: AuthRequest):
     if not user or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid username or password")
     
-    token = create_access_token(user["id"], user["username"])
+    token = create_access_token(user['user_id'], user["username"])
     return {
         "token": token,
-        "user_id": user["id"],
+        "user_id": user['user_id'],
         "username": user["username"],
         "display_name": user["display_name"],
         "is_admin": bool(user.get("is_admin", 0)),
@@ -623,7 +623,7 @@ async def current_user_info(user: dict = Depends(get_current_user)):
     if not full_user:
         raise HTTPException(404, "User not found")
     return {
-        "id": full_user["id"],
+        "id": full_user['user_id'],
         "username": full_user["username"],
         "display_name": full_user["display_name"],
         "is_admin": bool(full_user.get("is_admin", 0)),
@@ -968,7 +968,7 @@ if __name__ == "__main__":
 
 @app.put("/api/segments/{segment_id}")
 async def route_update_segment(segment_id: int, request: Request, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     data = await request.json()
     from backend.models import update_segment
@@ -984,7 +984,7 @@ async def route_update_segment(segment_id: int, request: Request, user: dict = D
 
 @app.delete("/api/segments/{segment_id}")
 async def route_delete_segment(segment_id: int, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     from backend.models import delete_segment
     delete_segment(segment_id)
@@ -992,7 +992,7 @@ async def route_delete_segment(segment_id: int, user: dict = Depends(get_current
 
 @app.put("/api/modules/{module_id}")
 async def route_update_module(module_id: int, request: Request, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     data = await request.json()
     from backend.models import update_module
@@ -1007,7 +1007,7 @@ async def route_update_module(module_id: int, request: Request, user: dict = Dep
 
 @app.delete("/api/modules/{module_id}")
 async def route_delete_module_ep(module_id: int, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     from backend.models import delete_module
     delete_module(module_id)
@@ -1015,7 +1015,7 @@ async def route_delete_module_ep(module_id: int, user: dict = Depends(get_curren
 
 @app.put("/api/videos/{video_id}")
 async def route_update_video(video_id: int, request: Request, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     data = await request.json()
     from backend.models import update_video
@@ -1030,7 +1030,7 @@ async def route_update_video(video_id: int, request: Request, user: dict = Depen
 
 @app.delete("/api/videos/{video_id}")
 async def route_delete_video(video_id: int, user: dict = Depends(get_current_user)):
-    if not is_user_admin(user["id"]):
+    if not is_user_admin(user['user_id']):
         raise HTTPException(status_code=403, detail="Admin only")
     from backend.models import delete_video
     delete_video(video_id)
