@@ -986,6 +986,15 @@ async def course_activity(segment_id: int):
 # ═══════════════════════════════════════════════════════════
 
 
+class ProfileUpdateRequest(BaseModel):
+    display_name: str
+    institute: str
+    bio: str
+    location: str
+    work: str
+    avatar_url: str
+    cover_url: str
+
 @app.put("/api/profile")
 async def update_profile(req: ProfileUpdateRequest, user: dict = Depends(get_current_user)):
     from backend.models import update_user_profile
@@ -1414,14 +1423,6 @@ class BlogCreateRequest(BaseModel):
     title: str
     content: str
 
-class ProfileUpdateRequest(BaseModel):
-    display_name: str
-    institute: str
-    bio: str
-    location: str
-    work: str
-    avatar_url: str
-    cover_url: str
 
 @app.get("/api/blogs")
 async def fetch_blogs(limit: int = 50, offset: int = 0, user: dict = Depends(get_current_user)):
