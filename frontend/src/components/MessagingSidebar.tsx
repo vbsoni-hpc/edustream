@@ -166,17 +166,8 @@ function GlobalChat({ token }: { token: string }) {
         // Play sound if there's a new message, it's not the initial load, and we're not muted
         if (!isInitialLoad && lastMessageIdRef.current !== null && latestId > lastMessageIdRef.current && !isMuted) {
           try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, ctx.currentTime);
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
-            osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
-            osc.stop(ctx.currentTime + 0.1);
+            const beep = new Audio('data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAGAACA0PzurlgVAyl4yfnxtWAbAyVwwvXzu2ghBCFou/H0wXAnBh1hs+31x3gtCBparOj1zH80CxdUpOP10Ic6DhVOnd701Y5BERNIldnz2JVIFRJCjtPy3JxPGRE9h83w36JWHRE4gMft4aldIhE0ecHr465kJxIwcrrn5bRrLBMsa7Tk5rlyMRQpZa3g5755NxYmX6bc58OAPBgkWaDY58eGQhsiU5nT5suMSB4gTpPO5s6TTyEfSYzJ5NGZVSUeRYbE4tSeWykeQIC+4NakYS0ePHm53tipZzEfOXOz29mubTYgNm6u2NqydDohM2io1du3ej8jMGOi0du7f0QkLl2czdu+hUonLVmWydrCi08pK1SQxdrFkFQsKlCLwNjHllovKkyFvNfKm18zKkh/t9XMn2U2KkR6stPNpGo6KkF1rdDPqHA+Kz5wqM7PrHVCLDxro8vQsHpHLTpmnsjQtH9LLzhhmcTQt4VQMTZdlMHQuopVMzVZjr3PvY5ZNjRVibnOv5NeOTRShLXNwZdjPDROgLHLw5xoPzRLe6zJxKBtQjRJdqjHxaRxRjVGcqPFxqd2SjZEbZ/Cx6t7TTdCaZq/x65/UTlAZZa8x7GEVTo/YZG5xrOIWjw+Xo22xrWNXj89WoiyxbiRYkE9V4SvxLmVZkQ9VICrwruYa0c9UXunwLycb0o9T3ejv72fc00+TXOfvL6jd1A+S2+bur6me1NASWyXuL6of1dBSGiTtb6rg1pCR2WPsr6th15ERmKLr72vi2JGRV+HrL2xj2ZIRVyDqbyzkmlLRFl/prq0lW1NRVd8orm1mXFQRVV4n7e2nHVTRVN1m7W2nnhWRlFxmLO3oXxZR1BulLG3o4BcSE5rka+3poNfSk1ojay3qIZiS0xliqq2qoplTUxihqe1q41pT0xgg6S0rZBsUUtegKGzrpNvU0tcfJ6yr5ZzVUxaeZuxr5h2WExYdpivsJt5Wk1Xc5WtsJ18XU5VcJKrsJ9/YE9UbY+psKGDY1BTa4ynsKOGZVFSaImlsKWJaFNSZoWir6aLa1VSZIKgrqeOblZRYoCdraiRcVhSYH2brKmTdFpSXnqYq6qVd11SXXeVqaqYel9TW3SSqKuafWFUWnKQpqucf2RUWW+NpKudgmZWWG2KoqqfhWlXWGuHoKqgh2tYV2mFnqmhim5aV2eCnKmjjHBbV2WAmqijj3NdV2R9l6ekkXVfV2J6laalk3hhWGF4k6SllXtjWGB2kKOml31lWV9zjqKmmH9nWl5xi6CmmoJpWl1viZ6lm4RrXFxth5ylnIdtXVxshJulnYlwXlxqgpmknotyX1xogJejn410YVxnfZWioI93Y1xme5OhoJF5ZFxkeZCgoZJ7Zl1jd46foZR9aF1idYyeoZV/al5ic4qcoZeCbF9hcYiboZiEbmBhb4aZoZmGcGFgboSXoJqIcmJgbIKWoJuJdGNga4CUn5yLdmVgan6SnpyNeGZgaXyQnZ2PemdgaHqOnJ2QfGlhZ3iNm52RfmthZnaLmp2Tf2xiZXSJmZ2UgW5jZXOHl52Vg3BkZHGFlp2WhXFkZHCDlZyXh3NlZG+Bk5yYiHVnZG1/kpuYindoZGx+kJuZi3lpZGt8jpqZjXpqZGp6jZmZjnxsZGp5i5iaj35tZWl3iZeakH9vZWh2iJaakoFwZmh0hpWakoNyZ2dzhJOZk4RzaGdyg5KZlIZ1aWdxgZGZlYd2amdwf4+YlYl4a2dvfo6Xlop5bGdufI2Xlot7bWdte4uWlox8bmhseoqVl41+b2hseIiUl46AcWhrd4eTl4+BcmlrdoWSlpCCc2pqdISRlpGEdWpqc4KQlpKFdmtqcoGPlpKGd2xqcYCOlZOIeW1qcX6MlZOJem5qcH2LlJOKe29qb3yKk5SLfXBqbnqIk5SMfnFrbnmHkpSNgHJrbXiGkZSOgXNsbXeFkJSOgnVsbXaDj5SPg3ZtbXWCjpOQhHdubHSBjZOQhnhubHOAjJORh3pvbHJ+i5KRiHtwbHJ9ipKRiXxxbXF8iZGRin1ybXB7h5CRin5zbXB6hpCSi390bnB5hY+RjIF1bm94hI6RjYJ2b293g42RjYN3b292goyRjoR4cG91gYuRjoV5cG91');
+            beep.play();
           } catch(e) {}
           
           setToast({ sender: newMessages[newMessages.length - 1].sender_name, content: newMessages[newMessages.length - 1].content });

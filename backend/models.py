@@ -951,7 +951,7 @@ def get_online_users(minutes: int = 5) -> list[dict]:
     with _conn() as c:
         cutoff = time.time() - (minutes * 60)
         rows = c.execute(
-            "SELECT username, display_name, is_admin FROM users WHERE last_active >= ? ORDER BY last_active DESC",
+            "SELECT id, username, display_name, is_admin FROM users WHERE last_active >= ? ORDER BY last_active DESC",
             (cutoff,)
         ).fetchall()
         return [dict(r) for r in rows]
@@ -961,7 +961,7 @@ def get_watching_users(video_id: int, minutes: int = 2) -> list[dict]:
     with _conn() as c:
         cutoff = time.time() - (minutes * 60)
         rows = c.execute(
-            "SELECT username, display_name, is_admin FROM users WHERE current_video_id = ? AND last_active >= ? ORDER BY last_active DESC",
+            "SELECT id, username, display_name, is_admin FROM users WHERE current_video_id = ? AND last_active >= ? ORDER BY last_active DESC",
             (video_id, cutoff)
         ).fetchall()
         return [dict(r) for r in rows]

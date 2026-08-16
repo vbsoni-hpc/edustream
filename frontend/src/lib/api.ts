@@ -97,6 +97,9 @@ export const coursesApi = {
 
   getVideo: (token: string, videoId: number) =>
     request<any>(`/api/videos/${videoId}`, { token }),
+
+  getVideos: (token: string) =>
+    request<{ videos: any[] }>('/api/videos', { token }),
 };
 
 // ── Subscriptions ─────────────────────────────────────────

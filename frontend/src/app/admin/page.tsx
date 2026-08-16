@@ -37,6 +37,7 @@ function AdminContent() {
     { key: 'sync', label: '🔄 Sync' },
     { key: 'segments', label: '📁 Segments' },
     { key: 'modules', label: '📂 Modules' },
+    { key: 'videos', label: '▶️ Videos' },
     { key: 'notices', label: '📢 Notices' },
     { key: 'users', label: '👥 Users' },
     { key: 'tools', label: '🔧 Tools' },
@@ -57,6 +58,7 @@ function AdminContent() {
       {activeTab === 'sync' && <SyncSection />}
       {activeTab === 'segments' && <SegmentsSection />}
       {activeTab === 'modules' && <ModulesSection />}
+      {activeTab === 'videos' && <VideosSection />}
       {activeTab === 'notices' && <NoticesSection />}
       {activeTab === 'users' && <UsersSection />}
       {activeTab === 'tools' && <ToolsSection />}
@@ -177,14 +179,19 @@ function SegmentsSection() {
 function ModulesSection() {
   const { token } = useAuth();
   const [segments, setSegments] = useState<any[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
   const [newName, setNewName] = useState('');
   const [newIcon, setNewIcon] = useState('📂');
   const [newSegId, setNewSegId] = useState('');
 
   const load = async () => {
     if (!token) return;
-    const res = await coursesApi.getSegments(token);
-    setSegments(res.segments);
+    const resSegs = await coursesApi.getSegments(token);
+    setSegments(resSegs.segments);
+    
+    // Fetch all modules (using analytics endpoint which returns all)
+    const resMods = await analyticsApi.getModules(token);
+    setModules(resMods.modules || []);
   };
 
   useEffect(() => { load(); }, [token]);
@@ -194,6 +201,16 @@ function ModulesSection() {
     await adminApi.createModule(token, { name: newName, segment_id: parseInt(newSegId), icon: newIcon });
     setNewName(''); setNewIcon('📂');
     load();
+  };
+
+  const handleToggleRestrict = async (id: number, current: boolean) => {
+    if (!token) return;
+    try {
+      await adminApi.updateModule(token, id, { is_restricted: !current });
+      load();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -210,6 +227,96 @@ function ModulesSection() {
           <button className="btn btn-primary" onClick={handleCreate}>Create</button>
         </div>
       </div>
+
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Icon</th><th>Name</th><th>Segment</th><th>Restricted</th>
+          </tr>
+        </thead>
+        <tbody>
+          {modules.map(m => (
+            <tr key={m.id}>
+              <td>{m.id}</td>
+              <td>{m.icon}</td>
+              <td>{m.name}</td>
+              <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{m.segment_name || '—'}</td>
+              <td>
+                <button 
+                  className={`btn btn-sm ${m.is_restricted ? 'btn-danger' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 8px' }}
+                  onClick={() => handleToggleRestrict(m.id, m.is_restricted)}
+                >
+                  {m.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ── Videos Section ──────────────────────────────────────── */
+function VideosSection() {
+  const { token } = useAuth();
+  const [videos, setVideos] = useState<any[]>([]);
+
+  const load = async () => {
+    if (!token) return;
+    try {
+      const res = await coursesApi.getVideos(token);
+      setVideos(res.videos || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => { load(); }, [token]);
+
+  const handleToggleRestrict = async (id: number, current: boolean) => {
+    if (!token) return;
+    try {
+      await adminApi.setVideoRestricted(token, id, !current);
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div>
+      <div className="glass-card-static mb-6">
+        <h4 style={{ marginBottom: 4 }}>All Videos</h4>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Manage video restrictions.</p>
+      </div>
+
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Title</th><th>Duration</th><th>Restricted</th>
+          </tr>
+        </thead>
+        <tbody>
+          {videos.map(v => (
+            <tr key={v.id}>
+              <td>{v.id}</td>
+              <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</td>
+              <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{Math.floor(v.duration / 60)}:{(v.duration % 60).toString().padStart(2, '0')}</td>
+              <td>
+                <button 
+                  className={`btn btn-sm ${v.is_restricted ? 'btn-danger' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 8px' }}
+                  onClick={() => handleToggleRestrict(v.id, v.is_restricted)}
+                >
+                  {v.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
