@@ -859,6 +859,9 @@ async def import_youtube(req: YouTubeImportRequest, user: dict = Depends(get_cur
 # ═══════════════════════════════════════════════════════════
 
 @app.get("/api/analytics/daily")
+async def get_daily_analytics(days: int = 30, user: dict = Depends(get_current_user)):
+    from backend.models import get_daily_watch_activity
+    return {"daily": get_daily_watch_activity(user["user_id"], days)}
 
 class TelegramImportRequest(BaseModel):
     channel: str
