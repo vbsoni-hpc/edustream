@@ -110,9 +110,10 @@ export default function GlobalPlayer() {
          background: '#000', 
          borderRadius: isPiP ? 0 : 16, 
          overflow: 'hidden', 
-         height: isCollapsed ? 0 : 'auto',
-         opacity: isCollapsed ? 0 : 1,
-         pointerEvents: isCollapsed ? 'none' : 'auto'
+         position: isCollapsed ? 'absolute' : 'relative',
+         left: isCollapsed ? -9999 : 'auto',
+         width: isCollapsed ? 350 : '100%',
+         opacity: isCollapsed ? 0 : 1
        }}>
          {isYoutube ? (
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
