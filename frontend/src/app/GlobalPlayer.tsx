@@ -20,6 +20,11 @@ export default function GlobalPlayer() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (!isPiP) setIsCollapsed(false);
+  }, [isPiP]);
 
   // Auto-PiP when navigating away from /player
   const prevPathname = useRef(pathname);
@@ -69,16 +74,23 @@ export default function GlobalPlayer() {
   const content = (
     <div ref={nodeRef} style={isPiP ? containerStyle : { width: '100%' }}>
        {isPiP && (
-         <div className="player-drag-handle" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600, cursor: 'move' }}>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>{video.title}</span>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <span style={{ cursor: 'pointer', color: 'var(--primary-light)' }} onClick={() => { setIsPiP(false); window.location.href='/player'; }} title="Expand">⛶</span>
+         <div className="player-drag-handle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600, cursor: 'move' }}>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>{video.title}</span>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <button 
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                title={isCollapsed ? "Expand Video" : "Collapse Video"}
+              >
+                {isCollapsed ? '+' : '−'}
+              </button>
+              <span style={{ cursor: 'pointer', color: 'var(--primary-light)' }} onClick={() => { setIsPiP(false); window.location.href='/player'; }} title="Fullscreen">⛶</span>
               <span style={{ cursor: 'pointer', color: '#ff4d4f' }} onClick={() => setVideoId(0)} title="Close">✕</span>
             </div>
          </div>
        )}
        
-       <div style={{ background: '#000', borderRadius: isPiP ? 0 : 16, overflow: 'hidden' }}>
+       <div style={{ background: '#000', borderRadius: isPiP ? 0 : 16, overflow: 'hidden', display: (isPiP && isCollapsed) ? 'none' : 'block' }}>
          {isYoutube ? (
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe
