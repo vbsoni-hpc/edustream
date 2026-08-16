@@ -1,5 +1,7 @@
 'use client';
 
+import { createPortal } from 'react-dom';
+
 import Draggable from 'react-draggable';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -123,7 +125,6 @@ export default function GlobalPlayer() {
 
   if (!isPiP && pathname === '/player') {
     if (mountNode) {
-      const { createPortal } = require('react-dom');
       return createPortal(content, mountNode);
     }
     return null; // Wait for mount node
