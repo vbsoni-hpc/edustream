@@ -113,6 +113,61 @@ CREATE TABLE IF NOT EXISTS user_segment_subscriptions (
     segment_id   INTEGER NOT NULL REFERENCES segments(id),
     PRIMARY KEY (user_id, segment_id)
 );
+
+CREATE TABLE IF NOT EXISTS friends (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    friend_id    INTEGER NOT NULL REFERENCES users(id),
+    status       TEXT    NOT NULL DEFAULT 'pending',
+    created_at   REAL    NOT NULL DEFAULT (strftime('%s','now')),
+    UNIQUE(user_id, friend_id)
+);
+
+CREATE TABLE IF NOT EXISTS streaks (
+    user_id          INTEGER PRIMARY KEY REFERENCES users(id),
+    current_streak   INTEGER NOT NULL DEFAULT 0,
+    longest_streak   INTEGER NOT NULL DEFAULT 0,
+    last_active_date TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS xp_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    event_type   TEXT    NOT NULL,
+    xp_amount    INTEGER NOT NULL DEFAULT 0,
+    reference_id INTEGER,
+    created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
+
+CREATE TABLE IF NOT EXISTS discussions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL REFERENCES users(id),
+    segment_id    INTEGER REFERENCES segments(id),
+    module_id     INTEGER REFERENCES modules(id),
+    video_id      INTEGER REFERENCES videos(id),
+    timestamp_sec REAL,
+    content       TEXT    NOT NULL,
+    parent_id     INTEGER REFERENCES discussions(id),
+    created_at    REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
+
+CREATE TABLE IF NOT EXISTS study_sessions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    segment_id   INTEGER NOT NULL REFERENCES segments(id),
+    video_id     INTEGER REFERENCES videos(id),
+    created_by   INTEGER NOT NULL REFERENCES users(id),
+    title        TEXT    NOT NULL DEFAULT '',
+    is_active    INTEGER NOT NULL DEFAULT 1,
+    video_position REAL  NOT NULL DEFAULT 0,
+    created_at   REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
+
+CREATE TABLE IF NOT EXISTS study_session_members (
+    session_id   INTEGER NOT NULL REFERENCES study_sessions(id),
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    joined_at    REAL    NOT NULL DEFAULT (strftime('%s','now')),
+    PRIMARY KEY (session_id, user_id)
+);
 """
 
 # Migration: add module_id to existing videos table if missing
@@ -131,7 +186,14 @@ _MIGRATIONS = [
     "ALTER TABLE videos ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS user_video_access (user_id INTEGER NOT NULL REFERENCES users(id), video_id INTEGER NOT NULL REFERENCES videos(id), PRIMARY KEY (user_id, video_id))",
     "CREATE TABLE IF NOT EXISTS user_segment_subscriptions (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))",
-    "ALTER TABLE users ADD COLUMN current_video_id INTEGER"
+    "ALTER TABLE users ADD COLUMN current_video_id INTEGER",
+    # Social layer migrations
+    "CREATE TABLE IF NOT EXISTS friends (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), friend_id INTEGER NOT NULL REFERENCES users(id), status TEXT NOT NULL DEFAULT 'pending', created_at REAL NOT NULL DEFAULT (strftime('%s','now')), UNIQUE(user_id, friend_id))",
+    "CREATE TABLE IF NOT EXISTS streaks (user_id INTEGER PRIMARY KEY REFERENCES users(id), current_streak INTEGER NOT NULL DEFAULT 0, longest_streak INTEGER NOT NULL DEFAULT 0, last_active_date TEXT NOT NULL DEFAULT '')",
+    "CREATE TABLE IF NOT EXISTS xp_events (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), event_type TEXT NOT NULL, xp_amount INTEGER NOT NULL DEFAULT 0, reference_id INTEGER, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
+    "CREATE TABLE IF NOT EXISTS discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER REFERENCES segments(id), module_id INTEGER REFERENCES modules(id), video_id INTEGER REFERENCES videos(id), timestamp_sec REAL, content TEXT NOT NULL, parent_id INTEGER REFERENCES discussions(id), created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
+    "CREATE TABLE IF NOT EXISTS study_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id INTEGER NOT NULL REFERENCES segments(id), video_id INTEGER REFERENCES videos(id), created_by INTEGER NOT NULL REFERENCES users(id), title TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 1, video_position REAL NOT NULL DEFAULT 0, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
+    "CREATE TABLE IF NOT EXISTS study_session_members (session_id INTEGER NOT NULL REFERENCES study_sessions(id), user_id INTEGER NOT NULL REFERENCES users(id), joined_at REAL NOT NULL DEFAULT (strftime('%s','now')), PRIMARY KEY (session_id, user_id))",
 ]
 
 
@@ -1107,3 +1169,642 @@ def delete_video(video_id: int):
         c.execute("DELETE FROM videos WHERE id = ?", (video_id,))
         c.commit()
         _trigger_backup()
+
+
+# ═══════════════════════════════════════════════════════════
+#  Social Presence — "People Studying Now"
+# ═══════════════════════════════════════════════════════════
+
+def get_active_learners(minutes: int = 5) -> list[dict]:
+    """Get users active within the last N minutes, with what they're studying."""
+    with _conn() as c:
+        cutoff = time.time() - (minutes * 60)
+        rows = c.execute("""
+            SELECT
+                u.id, u.username, u.display_name,
+                u.current_video_id,
+                v.title as video_title,
+                s.id as segment_id, s.name as segment_name, s.icon as segment_icon,
+                CAST((? - u.last_active) / 60 AS INTEGER) as idle_minutes,
+                CAST((? - u.last_active) AS INTEGER) as idle_seconds
+            FROM users u
+            LEFT JOIN videos v ON u.current_video_id = v.id
+            LEFT JOIN segments s ON v.segment_id = s.id
+            WHERE u.last_active >= ?
+            ORDER BY u.last_active DESC
+        """, (time.time(), time.time(), cutoff)).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════
+#  Trending Courses
+# ═══════════════════════════════════════════════════════════
+
+def get_trending_courses(limit: int = 10) -> list[dict]:
+    """Get courses ranked by composite activity score."""
+    with _conn() as c:
+        now = time.time()
+        day_ago = now - 86400
+        week_ago = now - 7 * 86400
+
+        rows = c.execute("""
+            SELECT
+                s.id, s.name, s.icon, s.description,
+                COUNT(DISTINCT v.id) as total_videos,
+                (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count,
+                -- Active learners in last 24h
+                (SELECT COUNT(DISTINCT p.user_id)
+                 FROM progress p JOIN videos v2 ON p.video_id = v2.id
+                 WHERE v2.segment_id = s.id AND p.last_watched_at >= ?) as active_24h,
+                -- New enrollments in last 7 days (approximate via subscriptions)
+                (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as total_enrolled,
+                -- Completions in last 7 days
+                (SELECT COUNT(*)
+                 FROM progress p JOIN videos v3 ON p.video_id = v3.id
+                 WHERE v3.segment_id = s.id AND p.completed = 1 AND p.last_watched_at >= ?) as completions_7d,
+                -- Total watch seconds in last 24h
+                (SELECT COALESCE(SUM(p.watch_seconds), 0)
+                 FROM progress p JOIN videos v4 ON p.video_id = v4.id
+                 WHERE v4.segment_id = s.id AND p.last_watched_at >= ?) as watch_seconds_24h,
+                -- Currently studying count (users active in last 5 min watching this course)
+                (SELECT COUNT(DISTINCT u.id)
+                 FROM users u JOIN videos v5 ON u.current_video_id = v5.id
+                 WHERE v5.segment_id = s.id AND u.last_active >= ?) as studying_now
+            FROM segments s
+            LEFT JOIN videos v ON v.segment_id = s.id
+            WHERE s.name != 'General' AND s.name != 'Uncategorized'
+            GROUP BY s.id
+            HAVING total_videos > 0
+            ORDER BY
+                (active_24h * 10 + completions_7d * 5 + studying_now * 20 + total_enrolled * 2) DESC,
+                s.name ASC
+            LIMIT ?
+        """, (day_ago, week_ago, day_ago, now - 300, limit)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_course_activity(segment_id: int) -> dict:
+    """Get live activity for a specific course."""
+    with _conn() as c:
+        now = time.time()
+        # Active learners
+        active = c.execute("""
+            SELECT u.id, u.username, u.display_name, v.title as video_title
+            FROM users u
+            JOIN videos v ON u.current_video_id = v.id
+            WHERE v.segment_id = ? AND u.last_active >= ?
+            ORDER BY u.last_active DESC
+        """, (segment_id, now - 300)).fetchall()
+
+        # Stats
+        stats = c.execute("""
+            SELECT
+                COUNT(DISTINCT p.user_id) as total_learners,
+                COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as total_completions,
+                COALESCE(SUM(p.watch_seconds), 0) as total_watch_seconds
+            FROM progress p
+            JOIN videos v ON p.video_id = v.id
+            WHERE v.segment_id = ?
+        """, (segment_id,)).fetchone()
+
+        return {
+            "active_learners": [dict(r) for r in active],
+            "total_learners": stats["total_learners"] if stats else 0,
+            "total_completions": stats["total_completions"] if stats else 0,
+            "total_watch_hours": (stats["total_watch_seconds"] / 3600) if stats else 0,
+        }
+
+
+# ═══════════════════════════════════════════════════════════
+#  Friends System
+# ═══════════════════════════════════════════════════════════
+
+def send_friend_request(user_id: int, friend_id: int) -> bool:
+    """Send a friend request. Returns False if already exists."""
+    if user_id == friend_id:
+        return False
+    with _conn() as c:
+        # Check if already exists in either direction
+        existing = c.execute(
+            "SELECT id FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)",
+            (user_id, friend_id, friend_id, user_id)
+        ).fetchone()
+        if existing:
+            return False
+        c.execute(
+            "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, 'pending')",
+            (user_id, friend_id)
+        )
+        c.commit()
+        _trigger_backup()
+        return True
+
+
+def accept_friend_request(user_id: int, request_id: int) -> bool:
+    """Accept a friend request where the current user is the friend_id."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT id FROM friends WHERE id=? AND friend_id=? AND status='pending'",
+            (request_id, user_id)
+        ).fetchone()
+        if not row:
+            return False
+        c.execute("UPDATE friends SET status='accepted' WHERE id=?", (request_id,))
+        c.commit()
+        _trigger_backup()
+        return True
+
+
+def reject_friend_request(user_id: int, request_id: int) -> bool:
+    """Reject/cancel a friend request."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT id FROM friends WHERE id=? AND (friend_id=? OR user_id=?)",
+            (request_id, user_id, user_id)
+        ).fetchone()
+        if not row:
+            return False
+        c.execute("DELETE FROM friends WHERE id=?", (request_id,))
+        c.commit()
+        _trigger_backup()
+        return True
+
+
+def remove_friend(user_id: int, friend_id: int) -> bool:
+    """Remove a friendship (both directions)."""
+    with _conn() as c:
+        c.execute(
+            "DELETE FROM friends WHERE ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)) AND status='accepted'",
+            (user_id, friend_id, friend_id, user_id)
+        )
+        c.commit()
+        _trigger_backup()
+        return True
+
+
+def get_friends(user_id: int) -> list[dict]:
+    """Get accepted friends with their study status."""
+    with _conn() as c:
+        cutoff = time.time() - 300  # 5 min
+        rows = c.execute("""
+            SELECT
+                u.id, u.username, u.display_name, u.last_active,
+                u.current_video_id,
+                v.title as video_title,
+                s.name as segment_name, s.icon as segment_icon,
+                CASE WHEN u.last_active >= ? THEN 1 ELSE 0 END as is_online,
+                CASE WHEN u.last_active >= ? AND u.current_video_id IS NOT NULL THEN 1 ELSE 0 END as is_studying,
+                sk.current_streak, sk.longest_streak,
+                COALESCE((SELECT SUM(xp_amount) FROM xp_events WHERE user_id = u.id), 0) as total_xp
+            FROM friends f
+            JOIN users u ON (CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END) = u.id
+            LEFT JOIN videos v ON u.current_video_id = v.id
+            LEFT JOIN segments s ON v.segment_id = s.id
+            LEFT JOIN streaks sk ON sk.user_id = u.id
+            WHERE f.status = 'accepted'
+              AND (f.user_id = ? OR f.friend_id = ?)
+            ORDER BY is_studying DESC, is_online DESC, u.display_name
+        """, (cutoff, cutoff, user_id, user_id, user_id)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_friend_requests(user_id: int) -> list[dict]:
+    """Get pending friend requests sent TO this user."""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT f.id as request_id, u.id, u.username, u.display_name, f.created_at
+            FROM friends f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.friend_id = ? AND f.status = 'pending'
+            ORDER BY f.created_at DESC
+        """, (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_sent_requests(user_id: int) -> list[dict]:
+    """Get pending friend requests sent BY this user."""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT f.id as request_id, u.id, u.username, u.display_name, f.created_at
+            FROM friends f
+            JOIN users u ON f.friend_id = u.id
+            WHERE f.user_id = ? AND f.status = 'pending'
+            ORDER BY f.created_at DESC
+        """, (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_friendship_status(user_id: int, other_id: int) -> Optional[dict]:
+    """Check friendship status between two users."""
+    with _conn() as c:
+        row = c.execute("""
+            SELECT id as request_id, user_id, friend_id, status
+            FROM friends
+            WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)
+        """, (user_id, other_id, other_id, user_id)).fetchone()
+        return dict(row) if row else None
+
+
+# ═══════════════════════════════════════════════════════════
+#  Streaks & Gamification
+# ═══════════════════════════════════════════════════════════
+
+# XP values for different events
+XP_VALUES = {
+    'complete_lecture': 10,
+    'complete_module': 50,
+    'complete_course': 500,
+    'daily_streak': 20,
+    'weekly_streak': 100,
+    'answer_discussion': 15,
+    'start_study_session': 10,
+    'join_study_session': 5,
+}
+
+
+def update_streak(user_id: int):
+    """Update the user's streak based on today's activity."""
+    import datetime
+    today = datetime.date.today().isoformat()
+
+    with _conn() as c:
+        row = c.execute("SELECT * FROM streaks WHERE user_id = ?", (user_id,)).fetchone()
+        if not row:
+            c.execute(
+                "INSERT INTO streaks (user_id, current_streak, longest_streak, last_active_date) VALUES (?, 1, 1, ?)",
+                (user_id, today)
+            )
+            # Award streak XP
+            _award_xp_internal(c, user_id, 'daily_streak', XP_VALUES['daily_streak'])
+            c.commit()
+            return
+
+        last_date = row["last_active_date"]
+        if last_date == today:
+            return  # Already counted today
+
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        if last_date == yesterday:
+            new_streak = row["current_streak"] + 1
+        else:
+            new_streak = 1  # Reset
+
+        new_longest = max(row["longest_streak"], new_streak)
+        c.execute(
+            "UPDATE streaks SET current_streak=?, longest_streak=?, last_active_date=? WHERE user_id=?",
+            (new_streak, new_longest, today, user_id)
+        )
+
+        # Award streak XP
+        _award_xp_internal(c, user_id, 'daily_streak', XP_VALUES['daily_streak'])
+        if new_streak > 0 and new_streak % 7 == 0:
+            _award_xp_internal(c, user_id, 'weekly_streak', XP_VALUES['weekly_streak'])
+
+        c.commit()
+
+
+def _award_xp_internal(conn, user_id: int, event_type: str, xp_amount: int, reference_id: int = None):
+    """Internal XP award using an existing connection."""
+    conn.execute(
+        "INSERT INTO xp_events (user_id, event_type, xp_amount, reference_id) VALUES (?, ?, ?, ?)",
+        (user_id, event_type, xp_amount, reference_id)
+    )
+
+
+def award_xp(user_id: int, event_type: str, xp_amount: int = None, reference_id: int = None):
+    """Award XP for a learning event."""
+    if xp_amount is None:
+        xp_amount = XP_VALUES.get(event_type, 0)
+    if xp_amount <= 0:
+        return
+    with _conn() as c:
+        _award_xp_internal(c, user_id, event_type, xp_amount, reference_id)
+        c.commit()
+
+
+def get_user_xp(user_id: int) -> dict:
+    """Get total XP and breakdown for a user."""
+    with _conn() as c:
+        total = c.execute(
+            "SELECT COALESCE(SUM(xp_amount), 0) as total FROM xp_events WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()["total"]
+
+        breakdown = c.execute("""
+            SELECT event_type, SUM(xp_amount) as total, COUNT(*) as count
+            FROM xp_events WHERE user_id = ?
+            GROUP BY event_type
+        """, (user_id,)).fetchall()
+
+        return {
+            "total_xp": total,
+            "level": total // 500 + 1,
+            "xp_to_next": 500 - (total % 500),
+            "breakdown": [dict(r) for r in breakdown],
+        }
+
+
+def get_user_streak(user_id: int) -> dict:
+    """Get streak info for a user."""
+    with _conn() as c:
+        row = c.execute("SELECT * FROM streaks WHERE user_id = ?", (user_id,)).fetchone()
+        if not row:
+            return {"current_streak": 0, "longest_streak": 0, "last_active_date": ""}
+        return dict(row)
+
+
+def get_friend_leaderboard(user_id: int) -> list[dict]:
+    """Get XP leaderboard among friends (including self)."""
+    with _conn() as c:
+        # Get friend IDs
+        friend_rows = c.execute("""
+            SELECT CASE WHEN user_id = ? THEN friend_id ELSE user_id END as fid
+            FROM friends
+            WHERE status = 'accepted' AND (user_id = ? OR friend_id = ?)
+        """, (user_id, user_id, user_id)).fetchall()
+
+        friend_ids = [r["fid"] for r in friend_rows] + [user_id]
+        placeholders = ",".join("?" for _ in friend_ids)
+
+        rows = c.execute(f"""
+            SELECT
+                u.id, u.username, u.display_name,
+                COALESCE((SELECT SUM(xp_amount) FROM xp_events WHERE user_id = u.id), 0) as total_xp,
+                COALESCE(sk.current_streak, 0) as current_streak
+            FROM users u
+            LEFT JOIN streaks sk ON sk.user_id = u.id
+            WHERE u.id IN ({placeholders})
+            ORDER BY total_xp DESC
+        """, friend_ids).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════
+#  User Profile (public)
+# ═══════════════════════════════════════════════════════════
+
+def get_user_profile(username: str = None, user_id: int = None) -> Optional[dict]:
+    """Get public profile data for a user."""
+    with _conn() as c:
+        if username:
+            user_row = c.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        elif user_id:
+            user_row = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        else:
+            return None
+
+        if not user_row:
+            return None
+
+        uid = user_row["id"]
+        cutoff = time.time() - 300
+
+        # Stats
+        stats = c.execute("""
+            SELECT
+                COUNT(CASE WHEN p.completed = 1 THEN 1 END) as completed_lectures,
+                COUNT(DISTINCT v.segment_id) as courses_touched,
+                COALESCE(SUM(p.watch_seconds), 0) as total_watch_seconds
+            FROM progress p
+            JOIN videos v ON p.video_id = v.id
+            WHERE p.user_id = ?
+        """, (uid,)).fetchone()
+
+        # Completed courses (all videos in segment completed)
+        completed_courses = c.execute("""
+            SELECT COUNT(*) as count FROM (
+                SELECT v.segment_id
+                FROM videos v
+                LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+                GROUP BY v.segment_id
+                HAVING COUNT(v.id) = SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END)
+                   AND COUNT(v.id) > 0
+            )
+        """, (uid,)).fetchone()["count"]
+
+        # Streak
+        streak = c.execute("SELECT * FROM streaks WHERE user_id = ?", (uid,)).fetchone()
+
+        # XP
+        total_xp = c.execute(
+            "SELECT COALESCE(SUM(xp_amount), 0) as total FROM xp_events WHERE user_id = ?", (uid,)
+        ).fetchone()["total"]
+
+        # Current studying
+        current_video = None
+        if user_row["current_video_id"] and user_row["last_active"] >= cutoff:
+            cv = c.execute("""
+                SELECT v.title, s.name as segment_name, s.icon as segment_icon
+                FROM videos v
+                LEFT JOIN segments s ON v.segment_id = s.id
+                WHERE v.id = ?
+            """, (user_row["current_video_id"],)).fetchone()
+            if cv:
+                current_video = dict(cv)
+
+        # Currently enrolled courses
+        enrolled = c.execute("""
+            SELECT s.id, s.name, s.icon,
+                   COUNT(v.id) as total_videos,
+                   COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos
+            FROM user_segment_subscriptions uss
+            JOIN segments s ON uss.segment_id = s.id
+            LEFT JOIN videos v ON v.segment_id = s.id
+            LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
+            WHERE uss.user_id = ?
+            GROUP BY s.id
+            ORDER BY s.name
+        """, (uid, uid)).fetchall()
+
+        return {
+            "id": uid,
+            "username": user_row["username"],
+            "display_name": user_row["display_name"],
+            "created_at": user_row["created_at"],
+            "is_online": user_row["last_active"] >= cutoff,
+            "is_studying": user_row["last_active"] >= cutoff and user_row["current_video_id"] is not None,
+            "current_video": current_video,
+            "completed_lectures": stats["completed_lectures"],
+            "completed_courses": completed_courses,
+            "courses_touched": stats["courses_touched"],
+            "total_watch_hours": round(stats["total_watch_seconds"] / 3600, 1),
+            "current_streak": streak["current_streak"] if streak else 0,
+            "longest_streak": streak["longest_streak"] if streak else 0,
+            "total_xp": total_xp,
+            "level": total_xp // 500 + 1,
+            "enrolled_courses": [dict(r) for r in enrolled],
+        }
+
+
+# ═══════════════════════════════════════════════════════════
+#  Contextual Discussions
+# ═══════════════════════════════════════════════════════════
+
+def create_discussion(user_id: int, content: str, segment_id: int = None,
+                      module_id: int = None, video_id: int = None,
+                      timestamp_sec: float = None, parent_id: int = None) -> int:
+    with _conn() as c:
+        cur = c.execute("""
+            INSERT INTO discussions (user_id, segment_id, module_id, video_id, timestamp_sec, content, parent_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, segment_id, module_id, video_id, timestamp_sec, content, parent_id))
+        c.commit()
+        _trigger_backup()
+        return cur.lastrowid
+
+
+def get_discussions(segment_id: int = None, module_id: int = None,
+                    video_id: int = None, limit: int = 50) -> list[dict]:
+    """Get discussions for a given context. Returns top-level posts with reply counts."""
+    with _conn() as c:
+        conditions = ["d.parent_id IS NULL"]
+        params = []
+
+        if video_id:
+            conditions.append("d.video_id = ?")
+            params.append(video_id)
+        elif module_id:
+            conditions.append("d.module_id = ?")
+            params.append(module_id)
+        elif segment_id:
+            conditions.append("d.segment_id = ?")
+            params.append(segment_id)
+
+        where = " AND ".join(conditions)
+        params.append(limit)
+
+        rows = c.execute(f"""
+            SELECT d.*, u.username, u.display_name,
+                   (SELECT COUNT(*) FROM discussions r WHERE r.parent_id = d.id) as reply_count
+            FROM discussions d
+            JOIN users u ON d.user_id = u.id
+            WHERE {where}
+            ORDER BY d.created_at DESC
+            LIMIT ?
+        """, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_discussion_replies(parent_id: int) -> list[dict]:
+    """Get replies to a discussion post."""
+    with _conn() as c:
+        rows = c.execute("""
+            SELECT d.*, u.username, u.display_name
+            FROM discussions d
+            JOIN users u ON d.user_id = u.id
+            WHERE d.parent_id = ?
+            ORDER BY d.created_at ASC
+        """, (parent_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════
+#  Study Sessions
+# ═══════════════════════════════════════════════════════════
+
+def create_study_session(user_id: int, segment_id: int, video_id: int = None, title: str = "") -> int:
+    with _conn() as c:
+        cur = c.execute("""
+            INSERT INTO study_sessions (segment_id, video_id, created_by, title)
+            VALUES (?, ?, ?, ?)
+        """, (segment_id, video_id, user_id, title))
+        session_id = cur.lastrowid
+        # Auto-join the creator
+        c.execute("INSERT INTO study_session_members (session_id, user_id) VALUES (?, ?)", (session_id, user_id))
+        c.commit()
+        _trigger_backup()
+        return session_id
+
+
+def get_active_study_sessions(segment_id: int = None) -> list[dict]:
+    """Get all active study sessions, optionally filtered by course."""
+    with _conn() as c:
+        if segment_id:
+            rows = c.execute("""
+                SELECT ss.*, s.name as segment_name, s.icon as segment_icon,
+                       v.title as video_title, u.display_name as creator_name,
+                       (SELECT COUNT(*) FROM study_session_members sm WHERE sm.session_id = ss.id) as member_count
+                FROM study_sessions ss
+                JOIN segments s ON ss.segment_id = s.id
+                LEFT JOIN videos v ON ss.video_id = v.id
+                JOIN users u ON ss.created_by = u.id
+                WHERE ss.is_active = 1 AND ss.segment_id = ?
+                ORDER BY ss.created_at DESC
+            """, (segment_id,)).fetchall()
+        else:
+            rows = c.execute("""
+                SELECT ss.*, s.name as segment_name, s.icon as segment_icon,
+                       v.title as video_title, u.display_name as creator_name,
+                       (SELECT COUNT(*) FROM study_session_members sm WHERE sm.session_id = ss.id) as member_count
+                FROM study_sessions ss
+                JOIN segments s ON ss.segment_id = s.id
+                LEFT JOIN videos v ON ss.video_id = v.id
+                JOIN users u ON ss.created_by = u.id
+                WHERE ss.is_active = 1
+                ORDER BY ss.created_at DESC
+            """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def join_study_session(session_id: int, user_id: int) -> bool:
+    with _conn() as c:
+        try:
+            c.execute("INSERT OR IGNORE INTO study_session_members (session_id, user_id) VALUES (?, ?)", (session_id, user_id))
+            c.commit()
+            return True
+        except Exception:
+            return False
+
+
+def leave_study_session(session_id: int, user_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM study_session_members WHERE session_id = ? AND user_id = ?", (session_id, user_id))
+        # If no members left, deactivate
+        count = c.execute("SELECT COUNT(*) FROM study_session_members WHERE session_id = ?", (session_id,)).fetchone()[0]
+        if count == 0:
+            c.execute("UPDATE study_sessions SET is_active = 0 WHERE id = ?", (session_id,))
+        c.commit()
+
+
+def get_study_session(session_id: int) -> Optional[dict]:
+    with _conn() as c:
+        row = c.execute("""
+            SELECT ss.*, s.name as segment_name, s.icon as segment_icon,
+                   v.title as video_title, u.display_name as creator_name
+            FROM study_sessions ss
+            JOIN segments s ON ss.segment_id = s.id
+            LEFT JOIN videos v ON ss.video_id = v.id
+            JOIN users u ON ss.created_by = u.id
+            WHERE ss.id = ?
+        """, (session_id,)).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        # Get members
+        members = c.execute("""
+            SELECT u.id, u.username, u.display_name, sm.joined_at
+            FROM study_session_members sm
+            JOIN users u ON sm.user_id = u.id
+            WHERE sm.session_id = ?
+            ORDER BY sm.joined_at
+        """, (session_id,)).fetchall()
+        result["members"] = [dict(m) for m in members]
+        return result
+
+
+def update_session_position(session_id: int, position: float):
+    with _conn() as c:
+        c.execute("UPDATE study_sessions SET video_position = ? WHERE id = ?", (position, session_id))
+        c.commit()
+
+
+def end_study_session(session_id: int, user_id: int) -> bool:
+    """End a study session (only creator can)."""
+    with _conn() as c:
+        row = c.execute("SELECT created_by FROM study_sessions WHERE id = ?", (session_id,)).fetchone()
+        if not row or row["created_by"] != user_id:
+            return False
+        c.execute("UPDATE study_sessions SET is_active = 0 WHERE id = ?", (session_id,))
+        c.commit()
+        return True
+

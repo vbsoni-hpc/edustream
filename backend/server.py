@@ -368,6 +368,12 @@ async def complete_video(
     user: dict = Depends(get_current_user),
 ):
     await async_mark_complete(user["user_id"], video_id)
+    # Award XP for completing a lecture
+    try:
+        from backend.models import award_xp
+        award_xp(user["user_id"], 'complete_lecture', reference_id=video_id)
+    except Exception:
+        pass
     return {"status": "completed"}
 
 
@@ -610,6 +616,12 @@ async def get_watching(video_id: int):
 async def user_ping(req: PingRequest = None, user: dict = Depends(get_current_user)):
     video_id = req.video_id if req else None
     ping_user(user["user_id"], video_id)
+    # Update streak on each heartbeat (idempotent per day)
+    try:
+        from backend.models import update_streak
+        update_streak(user["user_id"])
+    except Exception:
+        pass
     return {"status": "ok"}
 
 
@@ -643,6 +655,12 @@ async def current_user_info(user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════════════════
 #  Admin endpoints
 # ═══════════════════════════════════════════════════════════
+
+# -- Public users list --
+@app.get("/api/users")
+async def list_users(user: dict = Depends(get_current_user)):
+    data = get_all_users()
+    return {"users": data}
 
 # -- Users admin --
 @app.get("/api/admin/users")
@@ -936,6 +954,269 @@ async def analytics_segments(user: dict = Depends(get_current_user)):
 async def analytics_modules(user: dict = Depends(get_current_user)):
     data = get_module_stats(user["user_id"])
     return {"modules": data}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Social Presence — "People Studying Now"
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/presence")
+async def get_presence():
+    """Get currently active learners with what they're studying."""
+    from backend.models import get_active_learners
+    data = get_active_learners(minutes=5)
+    return {"learners": data, "count": len(data)}
+
+
+@app.get("/api/trending")
+async def get_trending():
+    """Get trending courses ranked by activity score."""
+    from backend.models import get_trending_courses
+    data = get_trending_courses(limit=10)
+    return {"courses": data}
+
+
+@app.get("/api/courses/{segment_id}/activity")
+async def course_activity(segment_id: int):
+    """Get live activity for a specific course."""
+    from backend.models import get_course_activity
+    data = get_course_activity(segment_id)
+    return data
+
+
+# ═══════════════════════════════════════════════════════════
+#  User Profiles
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/profile/{username}")
+async def get_profile(username: str):
+    """Get public profile for a user."""
+    from backend.models import get_user_profile
+    profile = get_user_profile(username=username)
+    if not profile:
+        raise HTTPException(404, "User not found")
+    return profile
+
+
+@app.get("/api/profile/id/{user_id}")
+async def get_profile_by_id(user_id: int):
+    """Get public profile for a user by ID."""
+    from backend.models import get_user_profile
+    profile = get_user_profile(user_id=user_id)
+    if not profile:
+        raise HTTPException(404, "User not found")
+    return profile
+
+
+# ═══════════════════════════════════════════════════════════
+#  Friends System
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/friends")
+async def list_friends(user: dict = Depends(get_current_user)):
+    from backend.models import get_friends
+    data = get_friends(user["user_id"])
+    return {"friends": data}
+
+
+@app.get("/api/friends/requests")
+async def list_friend_requests(user: dict = Depends(get_current_user)):
+    from backend.models import get_friend_requests, get_sent_requests
+    incoming = get_friend_requests(user["user_id"])
+    sent = get_sent_requests(user["user_id"])
+    return {"incoming": incoming, "sent": sent}
+
+
+class FriendRequest(BaseModel):
+    friend_id: int
+
+
+@app.post("/api/friends/add")
+async def add_friend(req: FriendRequest, user: dict = Depends(get_current_user)):
+    from backend.models import send_friend_request
+    success = send_friend_request(user["user_id"], req.friend_id)
+    if not success:
+        raise HTTPException(400, "Friend request already exists or invalid")
+    return {"status": "request_sent"}
+
+
+class FriendActionRequest(BaseModel):
+    request_id: int
+
+
+@app.post("/api/friends/accept")
+async def accept_friend(req: FriendActionRequest, user: dict = Depends(get_current_user)):
+    from backend.models import accept_friend_request
+    success = accept_friend_request(user["user_id"], req.request_id)
+    if not success:
+        raise HTTPException(400, "Request not found or already handled")
+    return {"status": "accepted"}
+
+
+@app.post("/api/friends/reject")
+async def reject_friend(req: FriendActionRequest, user: dict = Depends(get_current_user)):
+    from backend.models import reject_friend_request
+    success = reject_friend_request(user["user_id"], req.request_id)
+    if not success:
+        raise HTTPException(400, "Request not found")
+    return {"status": "rejected"}
+
+
+@app.delete("/api/friends/{friend_id}")
+async def remove_friend_endpoint(friend_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import remove_friend
+    remove_friend(user["user_id"], friend_id)
+    return {"status": "removed"}
+
+
+@app.get("/api/friends/status/{other_id}")
+async def friendship_status(other_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import get_friendship_status
+    status = get_friendship_status(user["user_id"], other_id)
+    return {"friendship": status}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Gamification — XP & Streaks
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/gamification/xp")
+async def get_xp(user: dict = Depends(get_current_user)):
+    from backend.models import get_user_xp
+    return get_user_xp(user["user_id"])
+
+
+@app.get("/api/gamification/streak")
+async def get_streak(user: dict = Depends(get_current_user)):
+    from backend.models import get_user_streak
+    return get_user_streak(user["user_id"])
+
+
+@app.get("/api/gamification/leaderboard/friends")
+async def friend_leaderboard(user: dict = Depends(get_current_user)):
+    from backend.models import get_friend_leaderboard
+    data = get_friend_leaderboard(user["user_id"])
+    return {"leaderboard": data}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Contextual Discussions
+# ═══════════════════════════════════════════════════════════
+
+class DiscussionCreate(BaseModel):
+    content: str
+    segment_id: Optional[int] = None
+    module_id: Optional[int] = None
+    video_id: Optional[int] = None
+    timestamp_sec: Optional[float] = None
+    parent_id: Optional[int] = None
+
+
+@app.post("/api/discussions")
+async def post_discussion(req: DiscussionCreate, user: dict = Depends(get_current_user)):
+    from backend.models import create_discussion, award_xp
+    disc_id = create_discussion(
+        user_id=user["user_id"],
+        content=req.content,
+        segment_id=req.segment_id,
+        module_id=req.module_id,
+        video_id=req.video_id,
+        timestamp_sec=req.timestamp_sec,
+        parent_id=req.parent_id,
+    )
+    # Award XP for answering a discussion
+    if req.parent_id:
+        award_xp(user["user_id"], 'answer_discussion')
+    return {"status": "created", "id": disc_id}
+
+
+@app.get("/api/discussions")
+async def list_discussions(
+    segment_id: Optional[int] = None,
+    module_id: Optional[int] = None,
+    video_id: Optional[int] = None,
+    limit: int = Query(50, ge=1),
+):
+    from backend.models import get_discussions
+    data = get_discussions(segment_id=segment_id, module_id=module_id, video_id=video_id, limit=limit)
+    return {"discussions": data}
+
+
+@app.get("/api/discussions/{discussion_id}/replies")
+async def list_replies(discussion_id: int):
+    from backend.models import get_discussion_replies
+    data = get_discussion_replies(discussion_id)
+    return {"replies": data}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Study Sessions — "Study Together"
+# ═══════════════════════════════════════════════════════════
+
+class StudySessionCreate(BaseModel):
+    segment_id: int
+    video_id: Optional[int] = None
+    title: str = ""
+
+
+@app.post("/api/sessions")
+async def create_session(req: StudySessionCreate, user: dict = Depends(get_current_user)):
+    from backend.models import create_study_session, award_xp
+    session_id = create_study_session(user["user_id"], req.segment_id, req.video_id, req.title)
+    award_xp(user["user_id"], 'start_study_session')
+    return {"status": "created", "session_id": session_id}
+
+
+@app.get("/api/sessions")
+async def list_sessions(segment_id: Optional[int] = None):
+    from backend.models import get_active_study_sessions
+    data = get_active_study_sessions(segment_id)
+    return {"sessions": data}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: int):
+    from backend.models import get_study_session
+    data = get_study_session(session_id)
+    if not data:
+        raise HTTPException(404, "Session not found")
+    return data
+
+
+@app.post("/api/sessions/{session_id}/join")
+async def join_session(session_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import join_study_session, award_xp
+    success = join_study_session(session_id, user["user_id"])
+    if success:
+        award_xp(user["user_id"], 'join_study_session')
+    return {"status": "joined"}
+
+
+@app.post("/api/sessions/{session_id}/leave")
+async def leave_session(session_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import leave_study_session
+    leave_study_session(session_id, user["user_id"])
+    return {"status": "left"}
+
+
+class SessionPositionUpdate(BaseModel):
+    position: float
+
+
+@app.post("/api/sessions/{session_id}/position")
+async def update_position(session_id: int, req: SessionPositionUpdate, user: dict = Depends(get_current_user)):
+    from backend.models import update_session_position
+    update_session_position(session_id, req.position)
+    return {"status": "updated"}
+
+
+@app.post("/api/sessions/{session_id}/end")
+async def end_session(session_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import end_study_session
+    success = end_study_session(session_id, user["user_id"])
+    if not success:
+        raise HTTPException(403, "Only the session creator can end it")
+    return {"status": "ended"}
 
 
 # ═══════════════════════════════════════════════════════════

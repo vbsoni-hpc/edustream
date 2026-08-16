@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { dashboardApi, subscriptionsApi, importApi } from '@/lib/api';
+import { dashboardApi, subscriptionsApi, importApi, presenceApi, trendingApi, gamificationApi, sessionsApi } from '@/lib/api';
 import { formatHours } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
@@ -32,6 +32,12 @@ function Dashboard() {
   const [notices, setNotices] = useState<any[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [loading, setLoading] = useState(true);
+  // New social state
+  const [activeLearners, setActiveLearners] = useState<any[]>([]);
+  const [trendingCourses, setTrendingCourses] = useState<any[]>([]);
+  const [xpData, setXpData] = useState<any>(null);
+  const [streakData, setStreakData] = useState<any>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
 
   const fetchData = async () => {
     if (!token) return;
@@ -52,6 +58,15 @@ function Dashboard() {
       setDailyLb(dailyRes.leaderboard);
       setWeeklyLb(weeklyRes.leaderboard);
       setNotices(noticeRes.notices);
+
+      // Fetch social data (non-blocking)
+      Promise.all([
+        presenceApi.getActive().then(r => setActiveLearners(r.learners)),
+        trendingApi.getCourses().then(r => setTrendingCourses(r.courses)),
+        gamificationApi.getXP(token).then(r => setXpData(r)),
+        gamificationApi.getStreak(token).then(r => setStreakData(r)),
+        sessionsApi.list().then(r => setSessions(r.sessions)),
+      ]).catch(() => {});
     } catch (err) {
       console.error('Dashboard fetch error:', err);
     } finally {
@@ -60,6 +75,14 @@ function Dashboard() {
   };
 
   useEffect(() => { fetchData(); }, [token]);
+
+  // Refresh presence every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      presenceApi.getActive().then(r => setActiveLearners(r.learners)).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubscribe = async (segId: number) => {
     if (!token) return;
@@ -80,55 +103,183 @@ function Dashboard() {
   const myCourses = segStats.filter(s => subscribedIds.has(s.id));
 
   return (
-    <div className="animate-fade-in">
-      {/* Hero */}
-      <div className="flex-between mb-6">
-        <div>
-          <h1 className="hero-title">Welcome back, {user?.display_name} 👋</h1>
-          <p className="hero-subtitle">Continue your learning journey</p>
-        </div>
-        <button className="btn btn-secondary upload-course-btn" onClick={() => setShowImport(true)}>
-          ➕ <span className="btn-text">Upload Course</span>
-        </button>
-      </div>
-
+    <div className="animate-fade-in learning-feed">
       {/* Notices */}
       {notices.length > 0 && (
-        <div className="mb-6">
-          <h4 className="section-title">📢 Important Notices</h4>
+        <div className="mb-4">
           {notices.map((n: any) => (
             <div key={n.id} className="notice-banner">{n.content}</div>
           ))}
         </div>
       )}
 
-      {/* Last viewed segment progress */}
+      {/* Stats Bar — XP, Streak, Level */}
+      <div className="stats-bar">
+        <div className="stat-pill">
+          <span className="stat-pill-icon">⚡</span>
+          <div>
+            <div className="stat-pill-value">{xpData?.total_xp || 0} XP</div>
+            <div className="stat-pill-label">Level {xpData?.level || 1}</div>
+          </div>
+        </div>
+        <div className="stat-pill">
+          <span className="stat-pill-icon">🔥</span>
+          <div>
+            <div className="stat-pill-value">{streakData?.current_streak || 0} day{(streakData?.current_streak || 0) !== 1 ? 's' : ''}</div>
+            <div className="stat-pill-label">Streak</div>
+          </div>
+        </div>
+        <div className="stat-pill">
+          <span className="stat-pill-icon">✅</span>
+          <div>
+            <div className="stat-pill-value">{stats?.completed_videos || 0}</div>
+            <div className="stat-pill-label">Lectures Done</div>
+          </div>
+        </div>
+        <div className="stat-pill">
+          <span className="stat-pill-icon">⏱️</span>
+          <div>
+            <div className="stat-pill-value">{formatHours(stats?.total_watch_seconds || 0)}</div>
+            <div className="stat-pill-label">Watch Time</div>
+          </div>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <button className="btn btn-secondary upload-course-btn" onClick={() => setShowImport(true)}>
+            ➕ <span className="btn-text">Upload Course</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Continue Learning Hero */}
       {lastSeg && (
         <Link href="/player" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <div className="glass-card mb-6" style={{ cursor: 'pointer' }}>
-            <div className="flex-between" style={{ marginBottom: 12 }}>
-              <span style={{ fontWeight: 600 }}>
-                Last Viewed Course: {lastSeg.icon} {lastSeg.name}
-              </span>
-              <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-                {lastSeg.completed_videos}/{lastSeg.total_videos} videos · {formatHours(lastSeg.watch_seconds)} watched
-              </span>
+          <div className="continue-card">
+            <div className="continue-card-glow" />
+            <div className="continue-card-content">
+              <div className="continue-card-label">Continue Learning</div>
+              <div className="continue-card-title">{lastSeg.icon} {lastSeg.name}</div>
+              <div className="continue-card-meta">
+                {lastSeg.completed_videos}/{lastSeg.total_videos} lectures · {formatHours(lastSeg.watch_seconds)} watched
+              </div>
+              <div className="progress-outer" style={{ marginTop: 12, height: 8 }}>
+                <div
+                  className="progress-inner"
+                  style={{ width: `${lastSeg.total_videos > 0 ? (lastSeg.completed_videos / lastSeg.total_videos * 100) : 0}%` }}
+                />
+              </div>
             </div>
-            <div className="progress-outer">
-              <div
-                className="progress-inner"
-                style={{ width: `${lastSeg.total_videos > 0 ? (lastSeg.completed_videos / lastSeg.total_videos * 100) : 0}%` }}
-              />
-            </div>
+            <div className="continue-card-action">Continue →</div>
           </div>
         </Link>
       )}
 
-      {/* My Courses Carousel */}
-      <h4 className="section-title">📚 My Courses</h4>
+      {/* Two-column: People Studying Now + Active Study Sessions */}
+      <div className="grid-2" style={{ marginTop: 24 }}>
+        {/* 🟢 People Studying Now */}
+        <div className="glass-card-static presence-card">
+          <div className="flex-between" style={{ marginBottom: 12 }}>
+            <h4 className="section-title" style={{ margin: 0 }}>🟢 People Studying Now</h4>
+            <span className="presence-count">{activeLearners.length} online</span>
+          </div>
+          {activeLearners.length === 0 ? (
+            <p className="empty-state-text" style={{ fontSize: 13 }}>No one is studying right now. Be the first! 🚀</p>
+          ) : (
+            <div className="presence-list">
+              {activeLearners.slice(0, 8).map((learner: any) => (
+                <Link key={learner.id} href={`/profile/${learner.username}`} className="presence-item">
+                  <div className="presence-avatar">
+                    <span className="online-dot-pulse" />
+                    {(learner.display_name || learner.username || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="presence-info">
+                    <div className="presence-name">{learner.display_name}</div>
+                    <div className="presence-course">
+                      {learner.segment_icon} {learner.segment_name || 'Browsing'}
+                    </div>
+                  </div>
+                  {learner.current_video_id && (
+                    <div className="presence-badge">Studying</div>
+                  )}
+                </Link>
+              ))}
+              {activeLearners.length > 8 && (
+                <div className="presence-more">+{activeLearners.length - 8} more</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 📡 Active Study Sessions */}
+        <div className="glass-card-static">
+          <div className="flex-between" style={{ marginBottom: 12 }}>
+            <h4 className="section-title" style={{ margin: 0 }}>📡 Study Sessions</h4>
+            <Link href="/study-session" className="btn btn-ghost btn-sm">View All</Link>
+          </div>
+          {sessions.length === 0 ? (
+            <p className="empty-state-text" style={{ fontSize: 13 }}>No active study sessions. Start one from a course page!</p>
+          ) : (
+            <div className="presence-list">
+              {sessions.slice(0, 5).map((session: any) => (
+                <Link key={session.id} href={`/study-session?id=${session.id}`} className="presence-item">
+                  <div className="presence-avatar session-avatar">
+                    {session.segment_icon || '📚'}
+                  </div>
+                  <div className="presence-info">
+                    <div className="presence-name">{session.title || session.segment_name}</div>
+                    <div className="presence-course">
+                      {session.member_count} studying · by {session.creator_name}
+                    </div>
+                  </div>
+                  <div className="presence-badge session-badge">Join</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 🔥 Trending Courses */}
+      {trendingCourses.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h4 className="section-title">🔥 Trending Courses</h4>
+          <div className="carousel mb-6">
+            {trendingCourses.map((course: any) => (
+              <div key={course.id} className="trending-card">
+                <div className="trending-card-icon">{course.icon}</div>
+                <div className="trending-card-name">{course.name}</div>
+                <div className="trending-card-stats">
+                  <span>👥 {course.enrolled_count} learners</span>
+                  {course.studying_now > 0 && (
+                    <span className="trending-live">
+                      <span className="online-dot-pulse" style={{ position: 'relative', display: 'inline-block', width: 6, height: 6, marginRight: 4 }} />
+                      {course.studying_now} now
+                    </span>
+                  )}
+                </div>
+                <div className="trending-card-activity">
+                  {course.active_24h > 0 && <span>{course.active_24h} active today</span>}
+                  {course.completions_7d > 0 && <span>{course.completions_7d} completions this week</span>}
+                </div>
+                {!subscribedIds.has(course.id) ? (
+                  <button className="btn btn-secondary btn-sm" style={{ marginTop: 8, width: '100%' }} onClick={() => handleSubscribe(course.id)}>
+                    Subscribe
+                  </button>
+                ) : (
+                  <Link href="/courses" className="btn btn-ghost btn-sm" style={{ marginTop: 8, width: '100%', display: 'block', textAlign: 'center' }}>
+                    Continue →
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📚 My Courses */}
+      <h4 className="section-title" style={{ marginTop: 32 }}>📚 My Courses</h4>
       {myCourses.length === 0 ? (
         <div className="empty-state" style={{ padding: '24px' }}>
-          <p className="empty-state-text">No courses subscribed yet. Browse All Courses below and subscribe!</p>
+          <p className="empty-state-text">No courses subscribed yet. Browse Trending or All Courses below and subscribe!</p>
         </div>
       ) : (
         <div className="carousel mb-6">
@@ -144,7 +295,7 @@ function Dashboard() {
         </div>
       )}
 
-      {/* All Courses Carousel */}
+      {/* 🌐 All Courses */}
       <h4 className="section-title" style={{ marginTop: 32 }}>🌐 All Courses</h4>
       {segStats.length === 0 ? (
         <div className="empty-state" style={{ padding: '24px' }}>
@@ -164,7 +315,7 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Leaderboards */}
+      {/* 🏆 Leaderboards */}
       <h4 className="section-title" style={{ marginTop: 32 }}>🏆 Top Learners</h4>
       <div className="grid-2">
         <LeaderboardCard title="Daily Watch Hours" data={dailyLb} />

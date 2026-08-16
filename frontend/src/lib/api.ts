@@ -33,7 +33,8 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(body.detail || res.statusText, res.status);
+    const detailStr = typeof body.detail === 'object' ? JSON.stringify(body.detail) : body.detail;
+    throw new ApiError(detailStr || res.statusText, res.status);
   }
 
   return res.json();
@@ -314,4 +315,116 @@ export const adminApi = {
 
   sync: (token: string) =>
     request<{ status: string; synced: number }>('/api/sync', { method: 'POST', token }),
+};
+
+// ── Users ─────────────────────────────────────────────────
+export const usersApi = {
+  getAll: (token: string) =>
+    request<{ users: any[] }>('/api/users', { token }),
+};
+
+// ── Presence ──────────────────────────────────────────────
+export const presenceApi = {
+  getActive: () =>
+    request<{ learners: any[]; count: number }>('/api/presence'),
+};
+
+// ── Trending ──────────────────────────────────────────────
+export const trendingApi = {
+  getCourses: () =>
+    request<{ courses: any[] }>('/api/trending'),
+};
+
+// ── Profiles ──────────────────────────────────────────────
+export const profileApi = {
+  get: (username: string) =>
+    request<any>(`/api/profile/${username}`),
+  getById: (userId: number) =>
+    request<any>(`/api/profile/id/${userId}`),
+};
+
+// ── Friends ───────────────────────────────────────────────
+export const friendsApi = {
+  list: (token: string) =>
+    request<{ friends: any[] }>('/api/friends', { token }),
+
+  getRequests: (token: string) =>
+    request<{ incoming: any[]; sent: any[] }>('/api/friends/requests', { token }),
+
+  add: (token: string, friendId: number) =>
+    request('/api/friends/add', { method: 'POST', token, body: JSON.stringify({ friend_id: friendId }) }),
+
+  accept: (token: string, requestId: number) =>
+    request('/api/friends/accept', { method: 'POST', token, body: JSON.stringify({ request_id: requestId }) }),
+
+  reject: (token: string, requestId: number) =>
+    request('/api/friends/reject', { method: 'POST', token, body: JSON.stringify({ request_id: requestId }) }),
+
+  remove: (token: string, friendId: number) =>
+    request(`/api/friends/${friendId}`, { method: 'DELETE', token }),
+
+  status: (token: string, otherId: number) =>
+    request<{ friendship: any }>(`/api/friends/status/${otherId}`, { token }),
+};
+
+// ── Gamification ──────────────────────────────────────────
+export const gamificationApi = {
+  getXP: (token: string) =>
+    request<{ total_xp: number; level: number; xp_to_next: number; breakdown: any[] }>('/api/gamification/xp', { token }),
+
+  getStreak: (token: string) =>
+    request<{ current_streak: number; longest_streak: number; last_active_date: string }>('/api/gamification/streak', { token }),
+
+  getFriendLeaderboard: (token: string) =>
+    request<{ leaderboard: any[] }>('/api/gamification/leaderboard/friends', { token }),
+};
+
+// ── Discussions ───────────────────────────────────────────
+export const discussionsApi = {
+  list: (params: { segment_id?: number; module_id?: number; video_id?: number; limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.segment_id) query.set('segment_id', String(params.segment_id));
+    if (params.module_id) query.set('module_id', String(params.module_id));
+    if (params.video_id) query.set('video_id', String(params.video_id));
+    if (params.limit) query.set('limit', String(params.limit));
+    return request<{ discussions: any[] }>(`/api/discussions?${query}`);
+  },
+
+  create: (token: string, data: { content: string; segment_id?: number; module_id?: number; video_id?: number; timestamp_sec?: number; parent_id?: number }) =>
+    request<{ status: string; id: number }>('/api/discussions', { method: 'POST', token, body: JSON.stringify(data) }),
+
+  getReplies: (discussionId: number) =>
+    request<{ replies: any[] }>(`/api/discussions/${discussionId}/replies`),
+};
+
+// ── Study Sessions ────────────────────────────────────────
+export const sessionsApi = {
+  list: (segmentId?: number) => {
+    const query = segmentId ? `?segment_id=${segmentId}` : '';
+    return request<{ sessions: any[] }>(`/api/sessions${query}`);
+  },
+
+  get: (sessionId: number) =>
+    request<any>(`/api/sessions/${sessionId}`),
+
+  create: (token: string, data: { segment_id: number; video_id?: number; title?: string }) =>
+    request<{ status: string; session_id: number }>('/api/sessions', { method: 'POST', token, body: JSON.stringify(data) }),
+
+  join: (token: string, sessionId: number) =>
+    request(`/api/sessions/${sessionId}/join`, { method: 'POST', token }),
+
+  leave: (token: string, sessionId: number) =>
+    request(`/api/sessions/${sessionId}/leave`, { method: 'POST', token }),
+
+  updatePosition: (token: string, sessionId: number, position: number) =>
+    request(`/api/sessions/${sessionId}/position`, { method: 'POST', token, body: JSON.stringify({ position }) }),
+
+  end: (token: string, sessionId: number) =>
+    request(`/api/sessions/${sessionId}/end`, { method: 'POST', token }),
+};
+
+// ── Course Activity ───────────────────────────────────────
+export const courseActivityApi = {
+  get: (segmentId: number) =>
+    request<{ active_learners: any[]; total_learners: number; total_completions: number; total_watch_hours: number }>(`/api/courses/${segmentId}/activity`),
 };

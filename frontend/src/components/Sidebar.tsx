@@ -13,6 +13,8 @@ const navItems = [
   { href: '/courses', icon: '📚', label: 'My Courses' },
   { href: '/player', icon: '🎬', label: 'Player' },
   { href: '/learning', icon: '📊', label: 'My Learning' },
+  { href: '/friends', icon: '👥', label: 'Friends' },
+  { href: '/study-session', icon: '📡', label: 'Study Sessions' },
 ];
 
 const adminItems = [
