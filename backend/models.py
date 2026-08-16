@@ -165,10 +165,17 @@ async def async_init_db():
 #  Synchronous helpers  (for Streamlit reads)
 # ═══════════════════════════════════════════════════════════
 
+from contextlib import contextmanager
+
+@contextmanager
 def _conn():
-    c = sqlite3.connect(str(DB_PATH))
+    c = sqlite3.connect(str(DB_PATH), timeout=10.0)
     c.row_factory = sqlite3.Row
-    return c
+    try:
+        with c:
+            yield c
+    finally:
+        c.close()
 
 
 # ── Users ─────────────────────────────────────────────────
