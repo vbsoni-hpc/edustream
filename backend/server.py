@@ -879,9 +879,9 @@ class AIChatRequest(BaseModel):
 @app.post("/api/ai/chat")
 async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
     try:
-        from g4f.client import Client
+        from g4f.client import AsyncClient
         from g4f.Provider import Pollinations
-        client = Client()
+        client = AsyncClient()
         
         system_msg = {
             "role": "system",
@@ -889,7 +889,7 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         }
         messages = [system_msg] + req.messages[-5:]
         
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-3.5-turbo",
             provider=Pollinations,
             messages=messages,
