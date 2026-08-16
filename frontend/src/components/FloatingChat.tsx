@@ -54,7 +54,11 @@ export function FloatingChat() {
   return (
     <Draggable handle=".floating-chat-header" cancel=".nodrag" nodeRef={nodeRef}>
       <div ref={nodeRef} className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
-        <div className="floating-chat-header" style={{ cursor: 'move', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div 
+          className="floating-chat-header" 
+          style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          onClick={() => { setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>EduStream Hangout</span>
             {isCollapsed && unreadGlobal && (
@@ -63,7 +67,6 @@ export function FloatingChat() {
           </div>
           <div className="nodrag" style={{ display: 'flex', alignItems: 'center' }}>
             <button 
-              onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
               style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
               title={isCollapsed ? "Expand" : "Collapse"}
             >

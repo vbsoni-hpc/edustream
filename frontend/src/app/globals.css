@@ -1266,7 +1266,7 @@ a {
   position: fixed;
   bottom: 96px;
   right: 24px;
-  width: 340px;
+  width: 280px;
   background: rgba(30, 41, 59, 0.95);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(108, 99, 255, 0.2);
