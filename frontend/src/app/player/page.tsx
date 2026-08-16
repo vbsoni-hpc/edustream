@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { coursesApi, progressApi, aiApi, usersApi } from '@/lib/api';
+import { useGlobalPlayer } from '../GlobalPlayerContext';
 import { formatDuration, naturalCompare } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
@@ -21,6 +22,8 @@ export default function PlayerPage() {
 }
 
 function PlayerContent() {
+  const { videoId: globalVideoId, setVideoId, setIsPiP } = useGlobalPlayer();
+
   const { token, user } = useAuth();
   const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,7 @@ function PlayerContent() {
   useEffect(() => { if (videoId) loadVideo(videoId); }, [videoId, loadVideo]);
 
   const navigateTo = (id: number) => {
-    localStorage.setItem('current_video_id', String(id));
+    setVideoId(id);
     loadVideo(id);
   };
 
@@ -102,41 +105,9 @@ function PlayerContent() {
         <div className="form-success" style={{ marginBottom: 16 }}>✅ You&#39;ve completed this video!</div>
       )}
 
-      {/* Video Player */}
-      {isYoutube ? (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 16, overflow: 'hidden' }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${video.youtube_id}?start=${Math.floor(lastPosition)}`}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-          <p style={{ marginTop: 8, fontSize: 14, color: 'var(--text-secondary)' }}>
-            🔗 <a href={`https://www.youtube.com/watch?v=${video.youtube_id}`} target="_blank" rel="noreferrer"
-                  style={{ color: 'var(--primary-light)' }}>Watch directly on YouTube ↗</a>
-          </p>
-          <div className="notice-banner" style={{ marginTop: 8 }}>
-            ℹ️ Progress tracking is limited for YouTube videos. Please use the Mark as Complete button below when finished.
-          </div>
-        </div>
-      ) : isBrokenYoutube ? (
-        <div className="form-error" style={{ marginBottom: 24 }}>
-          This YouTube video is missing its video ID and cannot be played. Please contact the administrator.
-        </div>
-      ) : (
-        <TelegramPlayer
-          videoMsgId={video.telegram_msg_id}
-          videoId={video.id}
-          token={token!}
-          apiBase={apiBase}
-          lastPosition={lastPosition}
-          onComplete={() => setIsComplete(true)}
-        />
-      )}
-
-      {/* Watching Now */}
+      {/* Video Player Mount Point */}
+      <div id="player-mount" style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}></div>
+{/* Watching Now */}
       <WatchingNow videoId={video.id} token={token!} />
 
       {/* AI Chat */}
@@ -167,103 +138,6 @@ function PlayerContent() {
             <div style={{ fontSize: 14, fontWeight: 600 }}>{nextVideo.title}</div>
           </div>
         ) : <div />}
-      </div>
-    </div>
-  );
-}
-
-/* ── Telegram Video Player ──────────────────────────────── */
-function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition, onComplete }: {
-  videoMsgId: number; videoId: number; token: string; apiBase: string; lastPosition: number; onComplete: () => void;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [totalWatched, setTotalWatched] = useState(0);
-  const lastSavedRef = useRef(0);
-  const [error, setError] = useState(false);
-
-  const saveProgress = useCallback((watchSec: number, pos: number) => {
-    progressApi.update(token, videoId, watchSec, pos).catch(() => {});
-  }, [token, videoId]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const onLoaded = () => {
-      if (lastPosition > 0) video.currentTime = lastPosition;
-    };
-
-    const onTimeUpdate = () => {
-      const current = Math.floor(video.currentTime);
-      setTotalWatched(prev => {
-        const newVal = Math.max(prev, current);
-        if (current - lastSavedRef.current >= 10) {
-          lastSavedRef.current = current;
-          saveProgress(newVal, current);
-        }
-        return newVal;
-      });
-    };
-
-    const onEnded = () => {
-      saveProgress(totalWatched, video.duration);
-      progressApi.complete(token, videoId).then(onComplete).catch(() => {});
-    };
-
-    const onPause = () => {
-      saveProgress(totalWatched, Math.floor(video.currentTime));
-    };
-
-    const onError = () => setError(true);
-
-    video.addEventListener('loadedmetadata', onLoaded);
-    video.addEventListener('timeupdate', onTimeUpdate);
-    video.addEventListener('ended', onEnded);
-    video.addEventListener('pause', onPause);
-    video.addEventListener('error', onError);
-
-    return () => {
-      video.removeEventListener('loadedmetadata', onLoaded);
-      video.removeEventListener('timeupdate', onTimeUpdate);
-      video.removeEventListener('ended', onEnded);
-      video.removeEventListener('pause', onPause);
-      video.removeEventListener('error', onError);
-    };
-  }, [lastPosition, saveProgress, token, videoId, onComplete, totalWatched]);
-
-  if (error) {
-    return (
-      <div className="glass-card-static" style={{ textAlign: 'center', padding: '48px 24px', marginBottom: 24 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-        <h3 style={{ marginBottom: 8 }}>Video Failed to Load</h3>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>The streaming server may not be running.</p>
-        <button className="btn btn-primary" onClick={() => { setError(false); }}>🔄 Retry</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 32px rgba(108, 99, 255, 0.15)', background: '#0E1117' }}>
-        <video
-          ref={videoRef}
-          controls
-          controlsList="nodownload"
-          preload="metadata"
-          style={{ width: '100%', display: 'block', maxHeight: '70vh' }}
-        >
-          <source src={`${apiBase}/api/stream/${videoMsgId}`} type="video/mp4" />
-        </video>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 16px', background: '#1A1D29', fontSize: 13, color: 'var(--text-secondary)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div className="online-dot" style={{ width: 8, height: 8, marginRight: 0, background: 'var(--primary)' }} />
-            Streaming from Telegram
-          </div>
-          <span>{formatDuration(totalWatched)} watched</span>
-        </div>
       </div>
     </div>
   );
