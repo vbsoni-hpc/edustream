@@ -134,18 +134,17 @@ function SegmentsSection() {
   };
 
 
-  const handleEdit = async (segment: any) => {
-    const newName = window.prompt("Enter new segment name:", segment.name);
-    if (!newName) return;
+const handleUpdateField = async (id: number, field: string, value: string) => {
     try {
-      await adminApi.updateSegment(token!, segment.id, { name: newName });
-      load();
+      await adminApi.updateSegment(token!, id, { [field]: value });
+      setSegments(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleDelete = async (segmentId: number) => {
+
     if (!window.confirm("Are you sure? This will delete all modules and videos in this segment!")) return;
     try {
       await adminApi.deleteSegment(token!, segmentId);
@@ -177,9 +176,9 @@ function SegmentsSection() {
           {segments.map(s => (
             <tr key={s.id}>
               <td>{s.id}</td>
-              <td>{s.icon}</td>
-              <td>{s.name}</td>
-              <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{s.description || '—'}</td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: 40 }} defaultValue={s.icon} onBlur={(e) => { if(e.target.value !== s.icon) handleUpdateField(s.id, 'icon', e.target.value) }} /></td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: '100%', minWidth: 150 }} defaultValue={s.name} onBlur={(e) => { if(e.target.value !== s.name) handleUpdateField(s.id, 'name', e.target.value) }} /></td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: '100%', minWidth: 200 }} defaultValue={s.description || ''} onBlur={(e) => { if(e.target.value !== s.description) handleUpdateField(s.id, 'description', e.target.value) }} /></td>
               <td>
                 <button 
                   className={`btn btn-sm ${s.is_restricted ? 'btn-danger' : 'btn-secondary'}`}
@@ -187,14 +186,11 @@ function SegmentsSection() {
                   onClick={() => handleToggleRestrict(s.id, s.is_restricted)}
                 >
                   {s.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
-
                 </button>
               </td>
               <td>
-                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(s)}>✏️</button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s.id)}>🗑️</button>
-              </td>
-            </tr>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s.id)}>🗑️ Delete</button>
+              </td></tr>
 
           ))}
         </tbody>
@@ -242,18 +238,17 @@ function ModulesSection() {
   };
 
 
-  const handleEdit = async (module: any) => {
-    const newName = window.prompt("Enter new module name:", module.name);
-    if (!newName) return;
+const handleUpdateField = async (id: number, field: string, value: any) => {
     try {
-      await adminApi.updateModule(token!, module.id, { name: newName });
-      load();
+      await adminApi.updateModule(token!, id, { [field]: value });
+      setModules(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleDelete = async (moduleId: number) => {
+
     if (!window.confirm("Are you sure? This will unassign all videos in this module!")) return;
     try {
       await adminApi.deleteModule(token!, moduleId);
@@ -287,10 +282,14 @@ function ModulesSection() {
         <tbody>
           {modules.map(m => (
             <tr key={m.id}>
-              <td>{m.id}</td>
-              <td>{m.icon}</td>
-              <td>{m.name}</td>
-              <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{m.segment_name || '—'}</td>
+<td>{m.id}</td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: 40 }} defaultValue={m.icon} onBlur={(e) => { if(e.target.value !== m.icon) handleUpdateField(m.id, 'icon', e.target.value) }} /></td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: '100%', minWidth: 150 }} defaultValue={m.name} onBlur={(e) => { if(e.target.value !== m.name) handleUpdateField(m.id, 'name', e.target.value) }} /></td>
+              <td>
+                <select style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px' }} defaultValue={m.segment_id} onChange={(e) => handleUpdateField(m.id, 'segment_id', parseInt(e.target.value))}>
+                  {segments.map(s => <option key={s.id} value={s.id} style={{color: 'black'}}>{s.name}</option>)}
+                </select>
+              </td>
               <td>
                 <button 
                   className={`btn btn-sm ${m.is_restricted ? 'btn-danger' : 'btn-secondary'}`}
@@ -298,14 +297,11 @@ function ModulesSection() {
                   onClick={() => handleToggleRestrict(m.id, m.is_restricted)}
                 >
                   {m.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
-
                 </button>
               </td>
               <td>
-                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(m)}>✏️</button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(m.id)}>🗑️</button>
-              </td>
-            </tr>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(m.id)}>🗑️ Delete</button>
+              </td></tr>
 
           ))}
         </tbody>
@@ -342,18 +338,17 @@ function VideosSection() {
   };
 
 
-  const handleEdit = async (video: any) => {
-    const newTitle = window.prompt("Enter new video title:", video.title);
-    if (!newTitle) return;
+const handleUpdateField = async (id: number, field: string, value: any) => {
     try {
-      await adminApi.updateVideo(token!, video.id, { title: newTitle });
-      load();
+      await adminApi.updateVideo(token!, id, { [field]: value });
+      setVideos(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleDelete = async (videoId: number) => {
+
     if (!window.confirm("Are you sure you want to delete this video?")) return;
     try {
       await adminApi.deleteVideo(token!, videoId);
@@ -379,8 +374,8 @@ function VideosSection() {
         <tbody>
           {videos.map(v => (
             <tr key={v.id}>
-              <td>{v.id}</td>
-              <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</td>
+<td>{v.id}</td>
+              <td><input style={{ background: 'transparent', border: '1px dashed var(--border-card)', color: 'inherit', padding: '4px', width: '100%', minWidth: 250 }} defaultValue={v.title} onBlur={(e) => { if(e.target.value !== v.title) handleUpdateField(v.id, 'title', e.target.value) }} /></td>
               <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{Math.floor(v.duration / 60)}:{(v.duration % 60).toString().padStart(2, '0')}</td>
               <td>
                 <button 
@@ -389,14 +384,11 @@ function VideosSection() {
                   onClick={() => handleToggleRestrict(v.id, v.is_restricted)}
                 >
                   {v.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
-
                 </button>
               </td>
               <td>
-                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(v)}>✏️</button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(v.id)}>🗑️</button>
-              </td>
-            </tr>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(v.id)}>🗑️ Delete</button>
+              </td></tr>
 
           ))}
         </tbody>
