@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { analyticsApi, dashboardApi, progressApi } from '@/lib/api';
+import { analyticsApi, dashboardApi, progressApi, subscriptionsApi } from '@/lib/api';
 import { formatHours } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
@@ -34,16 +34,39 @@ function LearningContent() {
     if (!token) return;
     (async () => {
       try {
-        const [statsRes, segRes, modRes, dailyRes, progRes] = await Promise.all([
+        const [statsRes, segRes, modRes, dailyRes, progRes, subsRes] = await Promise.all([
           dashboardApi.getStats(token),
           analyticsApi.getSegments(token),
           analyticsApi.getModules(token),
           analyticsApi.getDaily(token, 30),
           progressApi.getAll(token),
+          subscriptionsApi.get(token),
         ]);
-        setStats(statsRes);
-        setSegStats(segRes.segments);
-        setModStats(modRes.modules);
+        
+        const subIds = new Set(subsRes.subscribed_ids);
+        const filteredSegs = segRes.segments.filter((s: any) => subIds.has(s.id));
+        const filteredMods = modRes.modules.filter((m: any) => subIds.has(m.segment_id));
+
+        let totalVideos = 0;
+        let completedVideos = 0;
+        let totalWatchSeconds = 0;
+        filteredSegs.forEach((s: any) => {
+          totalVideos += s.total_videos || 0;
+          completedVideos += s.completed_videos || 0;
+          totalWatchSeconds += s.watch_seconds || 0;
+        });
+        const completionPct = totalVideos > 0 ? (completedVideos / totalVideos * 100) : 0;
+        
+        setStats({
+          total_videos: totalVideos,
+          completed_videos: completedVideos,
+          completion_pct: completionPct,
+          total_watch_hours: totalWatchSeconds / 3600,
+          total_watch_seconds: totalWatchSeconds
+        });
+        
+        setSegStats(filteredSegs);
+        setModStats(filteredMods);
         setDailyActivity(dailyRes.activity);
         setProgress(progRes.progress);
       } catch (err) {
