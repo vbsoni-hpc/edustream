@@ -73,11 +73,13 @@ export default function GlobalPlayer() {
   const content = (
     <div ref={nodeRef} style={isPiP ? containerStyle : { width: '100%' }}>
        {isPiP && (
-         <div className="player-drag-handle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600, cursor: 'move' }}>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>{video.title}</span>
-              <div className="nodrag" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#1A1D29' }}>
+            <div className="player-drag-handle" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, fontWeight: 600, cursor: 'move', marginRight: 12 }}>
+              {video.title}
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button 
-                onPointerDown={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
+                onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
                 style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title={isCollapsed ? "Expand Video" : "Collapse Video"}
               >
@@ -87,14 +89,14 @@ export default function GlobalPlayer() {
                 }
               </button>
               <button 
-                onPointerDown={(e) => { e.stopPropagation(); setIsPiP(false); window.location.href='/player'; }} 
+                onClick={(e) => { e.stopPropagation(); setIsPiP(false); window.location.href='/player'; }} 
                 style={{ background: 'transparent', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title="Fullscreen"
               >
                 <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
               </button>
               <button 
-                onPointerDown={(e) => { e.stopPropagation(); setVideoId(0); }} 
+                onClick={(e) => { e.stopPropagation(); setVideoId(0); }} 
                 style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title="Close"
               >
