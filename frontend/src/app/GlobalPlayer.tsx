@@ -19,6 +19,7 @@ export default function GlobalPlayer() {
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   // Auto-PiP when navigating away from /player
   const prevPathname = useRef(pathname);
@@ -64,8 +65,6 @@ export default function GlobalPlayer() {
     border: '1px solid rgba(255,255,255,0.1)',
     transition: 'all 0.3s ease',
   };
-
-  const nodeRef = useRef<HTMLDivElement>(null);
 
   const content = (
     <div ref={nodeRef} style={isPiP ? containerStyle : { width: '100%' }}>
