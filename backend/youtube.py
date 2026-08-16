@@ -12,6 +12,7 @@ def process_youtube_playlist(url: str, icon: str = "▶️", description: str = 
     """
     ydl_opts = {
         'extract_flat': 'in_playlist',
+        'noplaylist': False,
         'quiet': True,
         'no_warnings': True,
         'ignoreerrors': True, # Skip unavailable videos
