@@ -940,9 +940,7 @@ class AIChatRequest(BaseModel):
 @app.post("/api/ai/chat")
 async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
     try:
-        from g4f.client import AsyncClient
-        from g4f.Provider import Pollinations
-        client = AsyncClient()
+        import httpx
         
         system_msg = {
             "role": "system",
@@ -950,15 +948,24 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         }
         messages = [system_msg] + req.messages[-5:]
         
-        response = await client.chat.completions.create(
-            model="openai",
-            provider=Pollinations,
-            messages=messages,
-        )
-        answer = response.choices[0].message.content
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://text.pollinations.ai/openai",
+                json={
+                    "model": "openai",
+                    "messages": messages,
+                    "seed": 42
+                },
+                timeout=30.0
+            )
+            
+            if resp.status_code != 200:
+                raise Exception(f"API Error {resp.status_code}: {resp.text}")
+                
+            data = resp.json()
+            answer = data["choices"][0]["message"]["content"]
+            
         return {"response": answer}
-    except ImportError:
-        raise HTTPException(501, "AI chat is not available (g4f not installed)")
     except Exception as e:
         raise HTTPException(500, f"AI chat failed: {str(e)}")
 
