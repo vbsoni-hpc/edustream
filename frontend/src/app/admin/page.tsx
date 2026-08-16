@@ -133,6 +133,28 @@ function SegmentsSection() {
     }
   };
 
+
+  const handleEdit = async (segment: any) => {
+    const newName = window.prompt("Enter new segment name:", segment.name);
+    if (!newName) return;
+    try {
+      await adminApi.updateSegment(token!, segment.id, { name: newName });
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (segmentId: number) => {
+    if (!window.confirm("Are you sure? This will delete all modules and videos in this segment!")) return;
+    try {
+      await adminApi.deleteSegment(token!, segmentId);
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div>
       <div className="glass-card-static mb-6">
@@ -148,7 +170,7 @@ function SegmentsSection() {
       <table className="admin-table">
         <thead>
           <tr>
-            <th>ID</th><th>Icon</th><th>Name</th><th>Description</th><th>Restricted</th>
+            <th>ID</th><th>Icon</th><th>Name</th><th>Description</th><th>Restricted</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -165,9 +187,15 @@ function SegmentsSection() {
                   onClick={() => handleToggleRestrict(s.id, s.is_restricted)}
                 >
                   {s.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+
                 </button>
               </td>
+              <td>
+                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(s)}>✏️</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s.id)}>🗑️</button>
+              </td>
             </tr>
+
           ))}
         </tbody>
       </table>
@@ -213,6 +241,28 @@ function ModulesSection() {
     }
   };
 
+
+  const handleEdit = async (module: any) => {
+    const newName = window.prompt("Enter new module name:", module.name);
+    if (!newName) return;
+    try {
+      await adminApi.updateModule(token!, module.id, { name: newName });
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (moduleId: number) => {
+    if (!window.confirm("Are you sure? This will unassign all videos in this module!")) return;
+    try {
+      await adminApi.deleteModule(token!, moduleId);
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div>
       <div className="glass-card-static mb-6">
@@ -231,7 +281,7 @@ function ModulesSection() {
       <table className="admin-table">
         <thead>
           <tr>
-            <th>ID</th><th>Icon</th><th>Name</th><th>Segment</th><th>Restricted</th>
+            <th>ID</th><th>Icon</th><th>Name</th><th>Segment</th><th>Restricted</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -248,9 +298,15 @@ function ModulesSection() {
                   onClick={() => handleToggleRestrict(m.id, m.is_restricted)}
                 >
                   {m.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+
                 </button>
               </td>
+              <td>
+                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(m)}>✏️</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(m.id)}>🗑️</button>
+              </td>
             </tr>
+
           ))}
         </tbody>
       </table>
@@ -285,6 +341,28 @@ function VideosSection() {
     }
   };
 
+
+  const handleEdit = async (video: any) => {
+    const newTitle = window.prompt("Enter new video title:", video.title);
+    if (!newTitle) return;
+    try {
+      await adminApi.updateVideo(token!, video.id, { title: newTitle });
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (videoId: number) => {
+    if (!window.confirm("Are you sure you want to delete this video?")) return;
+    try {
+      await adminApi.deleteVideo(token!, videoId);
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div>
       <div className="glass-card-static mb-6">
@@ -295,7 +373,7 @@ function VideosSection() {
       <table className="admin-table">
         <thead>
           <tr>
-            <th>ID</th><th>Title</th><th>Duration</th><th>Restricted</th>
+            <th>ID</th><th>Title</th><th>Duration</th><th>Restricted</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -311,9 +389,15 @@ function VideosSection() {
                   onClick={() => handleToggleRestrict(v.id, v.is_restricted)}
                 >
                   {v.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+
                 </button>
               </td>
+              <td>
+                <button className="btn btn-sm btn-secondary" style={{ marginRight: 4 }} onClick={() => handleEdit(v)}>✏️</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(v.id)}>🗑️</button>
+              </td>
             </tr>
+
           ))}
         </tbody>
       </table>

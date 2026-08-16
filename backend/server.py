@@ -954,3 +954,75 @@ if __name__ == "__main__":
         reload=True,
         log_level="info",
     )
+
+# ── Edit and Delete Endpoints ─────────────────────────────────
+
+@app.put("/api/segments/{segment_id}")
+async def route_update_segment(segment_id: int, request: Request, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    data = await request.json()
+    from backend.models import update_segment
+    update_segment(
+        segment_id,
+        name=data.get("name"),
+        icon=data.get("icon"),
+        description=data.get("description"),
+        sort_order=data.get("sort_order"),
+        is_restricted=data.get("is_restricted")
+    )
+    return {"success": True}
+
+@app.delete("/api/segments/{segment_id}")
+async def route_delete_segment(segment_id: int, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    from backend.models import delete_segment
+    delete_segment(segment_id)
+    return {"success": True}
+
+@app.put("/api/modules/{module_id}")
+async def route_update_module(module_id: int, request: Request, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    data = await request.json()
+    from backend.models import update_module
+    update_module(
+        module_id,
+        name=data.get("name"),
+        icon=data.get("icon"),
+        sort_order=data.get("sort_order"),
+        is_restricted=data.get("is_restricted")
+    )
+    return {"success": True}
+
+@app.delete("/api/modules/{module_id}")
+async def route_delete_module_ep(module_id: int, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    from backend.models import delete_module
+    delete_module(module_id)
+    return {"success": True}
+
+@app.put("/api/videos/{video_id}")
+async def route_update_video(video_id: int, request: Request, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    data = await request.json()
+    from backend.models import update_video
+    update_video(
+        video_id,
+        title=data.get("title"),
+        segment_id=data.get("segment_id"),
+        module_id=data.get("module_id"),
+        is_restricted=data.get("is_restricted")
+    )
+    return {"success": True}
+
+@app.delete("/api/videos/{video_id}")
+async def route_delete_video(video_id: int, user: dict = Depends(get_current_user)):
+    if not is_user_admin(user["id"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    from backend.models import delete_video
+    delete_video(video_id)
+    return {"success": True}

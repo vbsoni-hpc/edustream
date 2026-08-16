@@ -1062,3 +1062,39 @@ async def async_get_video_by_msg_id(msg_id: int) -> Optional[dict]:
         cursor = await db.execute("SELECT * FROM videos WHERE telegram_msg_id = ?", (msg_id,))
         row = await cursor.fetchone()
         return dict(row) if row else None
+
+def delete_segment(segment_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM user_segment_access WHERE segment_id = ?", (segment_id,))
+        c.execute("DELETE FROM user_segment_subscriptions WHERE segment_id = ?", (segment_id,))
+        c.execute("UPDATE videos SET module_id = NULL WHERE segment_id = ?", (segment_id,))
+        c.execute("DELETE FROM user_video_access WHERE video_id IN (SELECT id FROM videos WHERE segment_id = ?)", (segment_id,))
+        c.execute("DELETE FROM progress WHERE video_id IN (SELECT id FROM videos WHERE segment_id = ?)", (segment_id,))
+        c.execute("DELETE FROM videos WHERE segment_id = ?", (segment_id,))
+        c.execute("DELETE FROM user_module_access WHERE module_id IN (SELECT id FROM modules WHERE segment_id = ?)", (segment_id,))
+        c.execute("DELETE FROM modules WHERE segment_id = ?", (segment_id,))
+        c.execute("DELETE FROM segments WHERE id = ?", (segment_id,))
+        c.commit()
+        _trigger_backup()
+
+def update_video(video_id: int, title: str = None, segment_id: int = None, module_id: int = None, is_restricted: bool = None):
+    with _conn() as c:
+        if title is not None:
+            c.execute("UPDATE videos SET title = ? WHERE id = ?", (title, video_id))
+        if segment_id is not None:
+            c.execute("UPDATE videos SET segment_id = ? WHERE id = ?", (segment_id, video_id))
+        if module_id is not None:
+            val = None if module_id == 0 else module_id
+            c.execute("UPDATE videos SET module_id = ? WHERE id = ?", (val, video_id))
+        if is_restricted is not None:
+            c.execute("UPDATE videos SET is_restricted = ? WHERE id = ?", (int(is_restricted), video_id))
+        c.commit()
+        _trigger_backup()
+
+def delete_video(video_id: int):
+    with _conn() as c:
+        c.execute("DELETE FROM user_video_access WHERE video_id = ?", (video_id,))
+        c.execute("DELETE FROM progress WHERE video_id = ?", (video_id,))
+        c.execute("DELETE FROM videos WHERE id = ?", (video_id,))
+        c.commit()
+        _trigger_backup()

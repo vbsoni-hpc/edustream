@@ -241,28 +241,37 @@ export const adminApi = {
     request(`/api/admin/users/${userId}`, { method: 'DELETE', token }),
 
   updateSegment: (token: string, segmentId: number, data: any) =>
-    request(`/api/admin/segments/${segmentId}`, { method: 'PUT', token, body: JSON.stringify(data) }),
+    request(`/api/segments/${segmentId}`, { method: 'PUT', token, body: JSON.stringify(data) }),
 
   createSegment: (token: string, data: { name: string; icon?: string; description?: string }) =>
-    request(`/api/admin/segments`, { method: 'POST', token, body: JSON.stringify(data) }),
+    request(`/api/segments`, { method: 'POST', token, body: JSON.stringify(data) }),
+
+  deleteSegment: (token: string, segmentId: number) =>
+    request(`/api/segments/${segmentId}`, { method: 'DELETE', token }),
 
   updateModule: (token: string, moduleId: number, data: any) =>
-    request(`/api/admin/modules/${moduleId}`, { method: 'PUT', token, body: JSON.stringify(data) }),
+    request(`/api/modules/${moduleId}`, { method: 'PUT', token, body: JSON.stringify(data) }),
 
   createModule: (token: string, data: { name: string; segment_id: number; icon?: string }) =>
-    request('/api/admin/modules', { method: 'POST', token, body: JSON.stringify(data) }),
+    request('/api/modules', { method: 'POST', token, body: JSON.stringify(data) }),
 
   deleteModule: (token: string, moduleId: number) =>
-    request(`/api/admin/modules/${moduleId}`, { method: 'DELETE', token }),
+    request(`/api/modules/${moduleId}`, { method: 'DELETE', token }),
+
+  updateVideo: (token: string, videoId: number, data: any) =>
+    request(`/api/videos/${videoId}`, { method: 'PUT', token, body: JSON.stringify(data) }),
+
+  deleteVideo: (token: string, videoId: number) =>
+    request(`/api/videos/${videoId}`, { method: 'DELETE', token }),
 
   assignVideos: (token: string, videoIds: number[], moduleId: number) =>
-    request('/api/admin/videos/assign', { method: 'POST', token, body: JSON.stringify({ video_ids: videoIds, module_id: moduleId }) }),
+    request('/api/videos/assign', { method: 'POST', token, body: JSON.stringify({ video_ids: videoIds, module_id: moduleId }) }),
 
   unassignVideos: (token: string, videoIds: number[]) =>
-    request('/api/admin/videos/unassign', { method: 'POST', token, body: JSON.stringify({ video_ids: videoIds }) }),
+    request('/api/videos/unassign', { method: 'POST', token, body: JSON.stringify({ video_ids: videoIds }) }),
 
   setVideoRestricted: (token: string, videoId: number, isRestricted: boolean) =>
-    request(`/api/admin/videos/${videoId}/restricted`, { method: 'PUT', token, body: JSON.stringify({ is_restricted: isRestricted }) }),
+    request(`/api/videos/${videoId}/restricted`, { method: 'PUT', token, body: JSON.stringify({ is_restricted: isRestricted }) }),
 
   createNotice: (token: string, content: string) =>
     request('/api/admin/notices', { method: 'POST', token, body: JSON.stringify({ content }) }),
