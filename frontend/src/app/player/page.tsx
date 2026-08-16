@@ -5,14 +5,12 @@ import { useAuth } from '@/lib/auth';
 import { coursesApi, progressApi, aiApi, usersApi } from '@/lib/api';
 import { useGlobalPlayer } from '../GlobalPlayerContext';
 import { formatDuration, naturalCompare } from '@/lib/utils';
-import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 
 export default function PlayerPage() {
   return (
     <AuthGuard>
       <div className="app-layout">
-        <Sidebar />
         <main className="main-content">
           <PlayerContent />
         </main>
@@ -25,9 +23,9 @@ function PlayerContent() {
   const { videoId: globalVideoId, setVideoId, setIsPiP, setMountNode, video, setVideo } = useGlobalPlayer();
 
   const { token, user } = useAuth();
-  
+
   const videoId = typeof window !== 'undefined' ? parseInt(localStorage.getItem('current_video_id') || '0') : 0;
-  
+
   const [loading, setLoading] = useState(!video || video.id !== videoId);
   const [isComplete, setIsComplete] = useState(video?.progress?.completed || false);
   const [siblingVideos, setSiblingVideos] = useState<any[]>([]);
@@ -106,12 +104,12 @@ function PlayerContent() {
       )}
 
       {/* Video Player Mount Point */}
-      <div 
-        id="player-mount" 
+      <div
+        id="player-mount"
         ref={setMountNode}
         style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}
       ></div>
-{/* Watching Now */}
+      {/* Watching Now */}
       <WatchingNow videoId={video.id} token={token!} />
 
       {/* AI Chat */}
@@ -243,8 +241,8 @@ function WatchingNow({ videoId, token }: { videoId: number; token: string }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {watchers.map((w, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             onClick={() => window.dispatchEvent(new CustomEvent('open-dm', { detail: { id: w.id, name: w.display_name } }))}
             style={{
               background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20,

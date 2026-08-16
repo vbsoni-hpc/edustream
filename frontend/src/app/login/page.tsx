@@ -81,116 +81,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container animate-fade-in">
-        <div className="login-title">🎓 EduStream</div>
-        <div className="login-subtitle">Study with your Friends</div>
-
-        <div className="tabs">
-          <button
-            className={`tab ${tab === 'login' ? 'active' : ''}`}
-            onClick={() => { setTab('login'); setError(''); }}
-          >
-            Sign In
-          </button>
-          <button
-            className={`tab ${tab === 'register' ? 'active' : ''}`}
-            onClick={() => { setTab('register'); setError(''); }}
-          >
-            Register
-          </button>
+    <div className="fb-login-wrapper">
+      <div className="fb-login-container">
+        <div className="fb-login-left">
+          <h1 className="fb-login-logo">EduStream</h1>
+          <h2 className="fb-login-subtitle">Study with your friends and connect with learners around the globe.</h2>
         </div>
-
-        {tab === 'login' ? (
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label className="label">Username</label>
-              <input
-                className="input"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                autoComplete="username"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Password</label>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
-            </div>
-            {error && <div className="form-error">{error}</div>}
-            <button className="btn btn-primary btn-full mt-4" type="submit" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister}>
-            <div className="form-group">
-              <label className="label">Username</label>
-              <input
-                className="input"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Choose a username"
-                autoComplete="username"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Display Name</label>
-              <input
-                className="input"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Institute / School</label>
-              <input
-                className="input"
-                type="text"
-                value={institute}
-                onChange={(e) => setInstitute(e.target.value)}
-                placeholder="Where do you study?"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Password</label>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Choose a password"
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Confirm Password</label>
-              <input
-                className="input"
-                type="password"
-                value={confirmPass}
-                onChange={(e) => setConfirmPass(e.target.value)}
-                placeholder="Confirm your password"
-                autoComplete="new-password"
-              />
-            </div>
-            {error && <div className="form-error">{error}</div>}
-            <button className="btn btn-primary btn-full mt-4" type="submit" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
-        )}
+        <div className="fb-login-right">
+          <div className="fb-login-card">
+            {tab === 'login' ? (
+              <form onSubmit={handleLogin} className="fb-form">
+                <input
+                  className="fb-input"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  autoComplete="username"
+                />
+                <input
+                  className="fb-input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                />
+                {error && <div className="form-error" style={{ textAlign: 'center', marginBottom: 16 }}>{error}</div>}
+                <button className="fb-btn fb-btn-primary" type="submit" disabled={loading}>
+                  {loading ? 'Logging in...' : 'Log In'}
+                </button>
+                <div className="fb-divider"></div>
+                <div style={{ textAlign: 'center' }}>
+                  <button type="button" className="fb-btn fb-btn-success" onClick={() => { setTab('register'); setError(''); }}>
+                    Create new account
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="fb-form">
+                <input
+                  className="fb-input"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Choose a username"
+                  autoComplete="username"
+                />
+                <input
+                  className="fb-input"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display Name"
+                />
+                <input
+                  className="fb-input"
+                  type="text"
+                  value={institute}
+                  onChange={(e) => setInstitute(e.target.value)}
+                  placeholder="Institute / School"
+                />
+                <input
+                  className="fb-input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="New password"
+                  autoComplete="new-password"
+                />
+                <input
+                  className="fb-input"
+                  type="password"
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  placeholder="Confirm password"
+                  autoComplete="new-password"
+                />
+                {error && <div className="form-error" style={{ textAlign: 'center', marginBottom: 16 }}>{error}</div>}
+                <button className="fb-btn fb-btn-success" type="submit" disabled={loading}>
+                  {loading ? 'Signing Up...' : 'Sign Up'}
+                </button>
+                <div className="fb-divider"></div>
+                <div style={{ textAlign: 'center' }}>
+                  <button type="button" className="fb-btn fb-btn-secondary" onClick={() => { setTab('login'); setError(''); }}>
+                    Already have an account?
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { friendsApi, usersApi, gamificationApi } from '@/lib/api';
-import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import Link from 'next/link';
 
@@ -11,7 +10,6 @@ export default function FriendsPage() {
   return (
     <AuthGuard>
       <div className="app-layout">
-        <Sidebar />
         <main className="main-content">
           <FriendsContent />
         </main>

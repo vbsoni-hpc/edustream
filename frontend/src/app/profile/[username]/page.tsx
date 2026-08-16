@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { profileApi, friendsApi } from '@/lib/api';
-import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -12,7 +11,6 @@ export default function ProfilePage() {
   return (
     <AuthGuard>
       <div className="app-layout">
-        <Sidebar />
         <main className="main-content">
           <ProfileContent />
         </main>

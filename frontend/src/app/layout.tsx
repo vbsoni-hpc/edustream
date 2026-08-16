@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import { GlobalPlayerProvider } from './GlobalPlayerContext';
 import GlobalPlayer from './GlobalPlayer';
+import Header from '@/components/Header';
 
 export const metadata: Metadata = {
   title: 'EduStream — Course Platform',
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <GlobalPlayerProvider>
+            <Header />
             {children}
             <GlobalPlayer />
           </GlobalPlayerProvider>
