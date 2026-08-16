@@ -1359,3 +1359,25 @@ a {
   max-width: 300px;
   animation: fadeIn 0.3s ease;
 }
+
+/* Upload Course Button */
+.upload-course-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+@media (max-width: 768px) {
+  .upload-course-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+  }
+  .upload-course-btn .btn-text {
+    display: none;
+  }
+}

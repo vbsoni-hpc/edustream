@@ -87,8 +87,8 @@ function Dashboard() {
           <h1 className="hero-title">Welcome back, {user?.display_name} 👋</h1>
           <p className="hero-subtitle">Continue your learning journey</p>
         </div>
-        <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: 13, borderRadius: 8 }} onClick={() => setShowImport(true)}>
-          ➕ Upload Course
+        <button className="btn btn-secondary upload-course-btn" onClick={() => setShowImport(true)}>
+          ➕ <span className="btn-text">Upload Course</span>
         </button>
       </div>
 
