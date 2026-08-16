@@ -235,15 +235,15 @@ function CourseCard({ seg, subscribed, onSubscribe, onUnsubscribe }: {
         <div className="progress-outer" style={{ marginBottom: 8, marginTop: 'auto' }}>
           <div className="progress-inner" style={{ width: `${pct}%` }} />
         </div>
-        <details style={{ fontSize: 13, color: 'var(--text-secondary)' }} onClick={e => e.preventDefault()}>
-          <summary style={{ cursor: 'pointer', color: 'var(--primary-light)', fontWeight: 600, marginBottom: 4 }}>
-            Description
-          </summary>
-          <p style={{ margin: '4px 0 0', lineHeight: 1.4, background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 6 }}>
-            {desc}
-          </p>
-        </details>
       </Link>
+      <details style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
+        <summary style={{ cursor: 'pointer', color: 'var(--primary-light)', fontWeight: 600, marginBottom: 4 }}>
+          Description
+        </summary>
+        <p style={{ margin: '4px 0 0', lineHeight: 1.4, background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 6 }}>
+          {desc}
+        </p>
+      </details>
       
       <div className="course-card-buttons" style={{ marginTop: 12 }}>
         {subscribed ? (
