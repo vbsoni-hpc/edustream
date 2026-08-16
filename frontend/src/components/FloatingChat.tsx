@@ -5,19 +5,15 @@ import { useAuth } from '@/lib/auth';
 import { messagingApi } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { useGlobalPlayer } from '@/app/GlobalPlayerContext';
+import Draggable from 'react-draggable';
 
 export function FloatingChat() {
   const { token, user } = useAuth();
-  const { isPiP } = useGlobalPlayer();
-  const [isOpen, setIsOpen] = useState(false);
   const [unreadGlobal, setUnreadGlobal] = useState(false);
   const lastIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!token || isOpen) {
-       setUnreadGlobal(false);
-       return;
-    }
+    if (!token) return;
     const checkUnread = async () => {
       try {
         const res = await messagingApi.getGroupMessages();
@@ -33,39 +29,21 @@ export function FloatingChat() {
     };
     const interval = setInterval(checkUnread, 10000);
     return () => clearInterval(interval);
-  }, [token, isOpen]);
+  }, [token]);
 
   if (!token || !user) return null;
 
   return (
-    <>
-      <button
-        className="floating-chat-button"
-        onClick={() => { setIsOpen(!isOpen); setUnreadGlobal(false); }}
-        title="Chat & Hangout"
-        style={{ position: 'relative', right: isPiP ? 'auto' : undefined, left: isPiP ? 24 : undefined }}
-      >
-        {isOpen ? '✕' : '💬'}
-        {!isOpen && unreadGlobal && (
-          <span style={{
-            position: 'absolute', top: -2, right: -2, width: 12, height: 12,
-            background: 'var(--danger)', borderRadius: '50%',
-            border: '2px solid var(--bg-card)'
-          }} />
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="floating-chat-widget" style={{ right: isPiP ? 'auto' : undefined, left: isPiP ? 24 : undefined }}>
-          <div className="floating-chat-header">
-            EduStream Hangout
-          </div>
-          <div className="floating-chat-body">
-            <GlobalChat token={token} user={user} />
-          </div>
+    <Draggable handle=".floating-chat-header">
+      <div className="floating-chat-widget" style={{ bottom: 24, right: 24, height: 400 }}>
+        <div className="floating-chat-header" style={{ cursor: 'move' }}>
+          EduStream Hangout
         </div>
-      )}
-    </>
+        <div className="floating-chat-body">
+          <GlobalChat token={token} user={user} />
+        </div>
+      </div>
+    </Draggable>
   );
 }
 

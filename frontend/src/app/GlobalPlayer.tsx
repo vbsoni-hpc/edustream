@@ -1,5 +1,7 @@
 'use client';
 
+import Draggable from 'react-draggable';
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useGlobalPlayer } from './GlobalPlayerContext';
 import { useAuth } from '@/lib/auth';
@@ -85,7 +87,7 @@ export default function GlobalPlayer() {
   const content = (
     <div style={isPiP ? containerStyle : { width: '100%' }}>
        {isPiP && (
-         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600 }}>
+         <div className="player-drag-handle" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600, cursor: 'move' }}>
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>{video.title}</span>
             <div style={{ display: 'flex', gap: 12 }}>
               <span style={{ cursor: 'pointer', color: 'var(--primary-light)' }} onClick={() => { setIsPiP(false); window.location.href='/player'; }} title="Expand">⛶</span>
@@ -129,7 +131,7 @@ export default function GlobalPlayer() {
 
   if (!isPiP && pathname !== '/player') return null;
 
-  return content;
+  return <Draggable handle=".player-drag-handle">{content}</Draggable>;
 }
 
 function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: any) {
