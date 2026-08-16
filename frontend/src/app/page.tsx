@@ -117,23 +117,6 @@ function Dashboard() {
         {/* Left Column: Identity & Shortcuts */}
         <div className="left-column" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Blogs Options */}
-          <div>
-            <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>Blogs</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <Link href="/blogs" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
-                <span style={{ fontSize: 20 }}>📰</span> All Blogs
-              </Link>
-              <Link href={`/blogs?user=${user?.username}`} className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
-                <span style={{ fontSize: 20 }}>👤</span> My Blogs
-              </Link>
-              <Link href="/blogs/new" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
-                <span style={{ fontSize: 20 }}>✍️</span> Write a Post
-              </Link>
-            </div>
-          </div>
-          
-          <div className="divider" style={{ height: 1, background: 'var(--border-card)', margin: '12px 0' }} />
 
 
 

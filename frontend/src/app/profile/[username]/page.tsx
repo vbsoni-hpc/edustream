@@ -143,6 +143,25 @@ function ProfileContent() {
       <div className="fb-profile-body">
         {/* Left Column (Sidebar) */}
         <div className="fb-profile-sidebar">
+
+          {/* Blogs Options */}
+          {isOwnProfile && (
+            <div className="glass-card-static" style={{ marginBottom: 16 }}>
+              <h3 className="fb-card-title">Blogs</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <Link href="/blogs" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 20 }}>📰</span> All Blogs
+                </Link>
+                <Link href={`/blogs?user=${user?.username}`} className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 20 }}>👤</span> My Blogs
+                </Link>
+                <Link href="/blogs/new" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 20 }}>✍️</span> Write a Post
+                </Link>
+              </div>
+            </div>
+          )}
+
           
           {/* About / Intro */}
           <div className="glass-card-static">
