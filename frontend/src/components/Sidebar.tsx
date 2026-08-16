@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usersApi } from '@/lib/api';
 import { MessagingSection } from '@/components/MessagingSidebar';
 
@@ -21,6 +21,25 @@ const adminItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Load initial collapsed state
+  useEffect(() => {
+    const stored = localStorage.getItem('sidebar_collapsed');
+    if (stored === 'true') {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  // Sync collapsed state to body class and local storage
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', String(isCollapsed));
+    if (isCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [isCollapsed]);
 
   // Heartbeat ping
   useEffect(() => {
@@ -36,9 +55,20 @@ export default function Sidebar() {
   const initial = (user.display_name || user.username || '?')[0].toUpperCase();
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">🎓 EduStream</div>
-      <div className="sidebar-subtitle">Study with your Friends</div>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div className="sidebar-logo">🎓 EduStream</div>
+          <div className="sidebar-subtitle">Study with your Friends</div>
+        </div>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {isCollapsed ? '▶' : '◀'}
+        </button>
+      </div>
 
       <nav className="sidebar-nav">
         {navItems.map((item) => (
@@ -46,9 +76,10 @@ export default function Sidebar() {
             key={item.href}
             href={item.href}
             className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}
+            title={isCollapsed ? item.label : undefined}
           >
             <span className="sidebar-link-icon">{item.icon}</span>
-            {item.label}
+            <span className="sidebar-link-text">{item.label}</span>
           </Link>
         ))}
 
@@ -58,15 +89,30 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}
+              title={isCollapsed ? item.label : undefined}
             >
               <span className="sidebar-link-icon">{item.icon}</span>
-              {item.label}
+              <span className="sidebar-link-text">{item.label}</span>
             </Link>
           ))}
       </nav>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <MessagingSection />
+      <div className="divider"></div>
+
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {isCollapsed ? (
+          <div 
+            onClick={() => setIsCollapsed(false)}
+            style={{ fontSize: 20, textAlign: 'center', marginTop: 16, cursor: 'pointer' }}
+            title="Messaging"
+          >
+            💬
+          </div>
+        ) : (
+          <div className="messaging-section">
+            <MessagingSection />
+          </div>
+        )}
       </div>
 
       <div className="sidebar-user" style={{ marginTop: 'auto' }}>

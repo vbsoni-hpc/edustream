@@ -93,6 +93,7 @@ from backend.models import (
     delete_user_admin,
     ping_user,
     get_online_users,
+    get_watching_users,
     is_user_admin,
     # Access control
     get_user_segment_access,
@@ -432,6 +433,20 @@ async def segment_videos(segment_id: int, user: dict = Depends(get_current_user)
     return {"videos": videos}
 
 
+@app.post("/api/segments/{segment_id}/restrict")
+async def toggle_segment_restriction(segment_id: int, user: dict = Depends(get_current_admin)):
+    """Toggle the is_restricted status of a segment (admin only)."""
+    with sqlite3.connect(str(DB_PATH)) as c:
+        c.row_factory = sqlite3.Row
+        row = c.execute("SELECT is_restricted FROM segments WHERE id = ?", (segment_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Segment not found")
+        new_status = 0 if row["is_restricted"] else 1
+        c.execute("UPDATE segments SET is_restricted = ? WHERE id = ?", (new_status, segment_id))
+        c.commit()
+    return {"status": "ok", "is_restricted": bool(new_status)}
+
+
 @app.get("/api/segments/{segment_id}/modules")
 async def segment_modules(segment_id: int, user: dict = Depends(get_current_user)):
     modules = get_modules_by_segment(segment_id, user["user_id"])
@@ -565,9 +580,18 @@ async def clear_messages(user: dict = Depends(get_current_admin)):
 #  Users / Online
 # ═══════════════════════════════════════════════════════════
 
+class PingRequest(BaseModel):
+    video_id: Optional[int] = None
+
+@app.get("/api/videos/{video_id}/watching")
+async def get_watching(video_id: int):
+    data = get_watching_users(video_id)
+    return {"users": data}
+
 @app.post("/api/users/ping")
-async def user_ping(user: dict = Depends(get_current_user)):
-    ping_user(user["user_id"])
+async def user_ping(req: PingRequest = None, user: dict = Depends(get_current_user)):
+    video_id = req.video_id if req else None
+    ping_user(user["user_id"], video_id)
     return {"status": "ok"}
 
 

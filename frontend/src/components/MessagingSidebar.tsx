@@ -77,12 +77,44 @@ function GlobalChat({ token }: { token: string }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
+  const lastMessageIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const storedMute = localStorage.getItem('chat_muted');
+    if (storedMute !== null) {
+      setIsMuted(storedMute === 'true');
+    }
+  }, []);
+
+  const toggleMute = () => {
+    const newMute = !isMuted;
+    setIsMuted(newMute);
+    localStorage.setItem('chat_muted', String(newMute));
+  };
 
   const fetchMessages = async () => {
     try {
       const res = await messagingApi.getGroupMessages();
-      setMessages(res.messages.reverse()); // latest at bottom
+      const newMessages = res.messages.reverse();
+      
+      if (newMessages.length > 0) {
+        const latestId = newMessages[newMessages.length - 1].id;
+        
+        // Play sound if there's a new message, it's not the initial load, and we're not muted
+        if (!isInitialLoad && lastMessageIdRef.current !== null && latestId > lastMessageIdRef.current && !isMuted) {
+          const audio = new Audio('/drop.wav');
+          audio.volume = 0.5;
+          audio.play().catch(() => {}); // catch errors if browser blocks autoplay
+        }
+        
+        lastMessageIdRef.current = latestId;
+      }
+      
+      setMessages(newMessages);
+      if (isInitialLoad) setIsInitialLoad(false);
     } catch (e) {
       console.error(e);
     }
@@ -92,7 +124,7 @@ function GlobalChat({ token }: { token: string }) {
     fetchMessages();
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMuted, isInitialLoad]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,6 +145,15 @@ function GlobalChat({ token }: { token: string }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 300 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button 
+          onClick={toggleMute} 
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16 }}
+          title={isMuted ? "Unmute Notifications" : "Mute Notifications"}
+        >
+          {isMuted ? '🔕' : '🔔'}
+        </button>
+      </div>
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4, marginBottom: 8 }}>
         {messages.map(m => (
           <div key={m.id} style={{ background: 'var(--bg-card)', padding: '8px', borderRadius: 8, fontSize: 12 }}>

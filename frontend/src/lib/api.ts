@@ -172,11 +172,18 @@ export const messagingApi = {
 
 // ── Users ─────────────────────────────────────────────────
 export const usersApi = {
-  ping: (token: string) =>
-    request('/api/users/ping', { method: 'POST', token }),
+  ping: (token: string, videoId?: number) =>
+    request('/api/users/ping', { 
+      method: 'POST', 
+      token, 
+      body: videoId ? JSON.stringify({ video_id: videoId }) : undefined 
+    }),
 
   getOnline: () =>
     request<{ users: any[] }>('/api/users/online'),
+
+  getWatching: (videoId: number) =>
+    request<{ users: any[] }>(`/api/videos/${videoId}/watching`),
 
   getAll: (token: string) =>
     request<{ users: any[] }>('/api/users', { token }),

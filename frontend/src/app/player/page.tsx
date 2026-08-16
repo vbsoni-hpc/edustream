@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
-import { coursesApi, progressApi, aiApi } from '@/lib/api';
+import { coursesApi, progressApi, aiApi, usersApi } from '@/lib/api';
 import { formatDuration, naturalCompare } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
@@ -135,6 +135,9 @@ function PlayerContent() {
           onComplete={() => setIsComplete(true)}
         />
       )}
+
+      {/* Watching Now */}
+      <WatchingNow videoId={video.id} token={token!} />
 
       {/* AI Chat */}
       <AIChatSection videoId={video.id} videoTitle={video.title} />
@@ -321,6 +324,56 @@ function AIChatSection({ videoId, videoTitle }: { videoId: number; videoTitle: s
           Ask 🚀
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ── Watching Now Section ────────────────────────────────── */
+function WatchingNow({ videoId, token }: { videoId: number; token: string }) {
+  const [watchers, setWatchers] = useState<any[]>([]);
+
+  const fetchWatchers = useCallback(async () => {
+    try {
+      // Ping that we are watching
+      await usersApi.ping(token, videoId);
+      // Fetch who else is watching
+      const res = await usersApi.getWatching(videoId);
+      setWatchers(res.users || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [videoId, token]);
+
+  useEffect(() => {
+    fetchWatchers();
+    const interval = setInterval(fetchWatchers, 15000); // 15s refresh
+    return () => clearInterval(interval);
+  }, [fetchWatchers]);
+
+  if (watchers.length === 0) return null;
+
+  return (
+    <div style={{
+      marginTop: 24, padding: 16, background: 'rgba(255,255,255,0.02)',
+      borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)',
+      display: 'flex', alignItems: 'center', gap: 16, overflowX: 'auto'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
+        <span className="online-dot" style={{ width: 10, height: 10, margin: 0 }} />
+        Watching Now ({watchers.length})
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {watchers.map((w, i) => (
+          <div key={i} style={{
+            background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20,
+            fontSize: 13, border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', gap: 6
+          }}>
+            <span style={{ fontSize: 16 }}>{w.is_admin ? '👑' : '👤'}</span>
+            {w.display_name}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

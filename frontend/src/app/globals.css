@@ -103,7 +103,31 @@ a {
   left: 0;
   bottom: 0;
   z-index: 100;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+  padding: 24px 8px;
+}
+
+.sidebar.collapsed .sidebar-logo,
+.sidebar.collapsed .sidebar-subtitle,
+.sidebar.collapsed .sidebar-link-text,
+.sidebar.collapsed .messaging-section,
+.sidebar.collapsed .sidebar-user-name,
+.sidebar.collapsed .sidebar-user-handle,
+.sidebar.collapsed .sidebar-user button {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-link {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar.collapsed .sidebar-link-icon {
+  margin: 0;
 }
 
 .sidebar-logo {
@@ -139,6 +163,7 @@ a {
   color: var(--text-secondary);
   transition: var(--transition);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .sidebar-link:hover {
@@ -203,6 +228,12 @@ a {
   min-height: 100vh;
   max-width: calc(100vw - 260px);
   overflow-x: hidden;
+  transition: margin-left 0.3s ease, max-width 0.3s ease;
+}
+
+.sidebar.collapsed + .main-content {
+  margin-left: 70px;
+  max-width: calc(100vw - 70px);
 }
 
 /* ── Glass Card ─────────────────────────────────────────── */
@@ -1014,12 +1045,14 @@ a {
 @media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);
+    width: 260px; /* Reset width if it was collapsed */
   }
   .sidebar.open {
     transform: translateX(0);
   }
-  .main-content {
+  .main-content, .main-content.collapsed {
     margin-left: 0;
+    max-width: 100vw;
     padding: 24px 20px;
   }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }

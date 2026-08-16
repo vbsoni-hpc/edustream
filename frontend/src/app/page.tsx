@@ -180,18 +180,51 @@ function CourseCard({ seg, subscribed, onSubscribe, onUnsubscribe }: {
   seg: any; subscribed: boolean;
   onSubscribe: (id: number) => void; onUnsubscribe: (id: number) => void;
 }) {
+  const { user } = useAuth();
+  const [isRestricted, setIsRestricted] = useState(seg.is_restricted === 1);
   const pct = seg.total_videos > 0 ? (seg.completed_videos / seg.total_videos * 100) : 0;
   const watchHrs = (seg.watch_seconds / 3600).toFixed(1);
   const desc = seg.description || `Access materials and track your progress in ${seg.name}.`;
 
+  const handleRestrict = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const token = user?.token;
+      if (!token) return;
+      const res = await fetch(`/api/segments/${seg.id}/restrict`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsRestricted(data.is_restricted);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <div className="course-card">
-      <div>
-        <div className="course-card-icon">{seg.icon}</div>
+    <div className="course-card" style={{ display: 'flex', flexDirection: 'column' }}>
+      <Link href={subscribed ? `/courses` : '#'} style={{ flex: 1, textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="course-card-icon">{seg.icon}</div>
+          {user?.username === 'vbsoni' && (
+            <button 
+              onClick={handleRestrict} 
+              className={`btn btn-sm ${isRestricted ? 'btn-danger' : 'btn-secondary'}`}
+              style={{ fontSize: 10, padding: '2px 6px', zIndex: 10 }}
+            >
+              {isRestricted ? 'Restricted' : 'Public'}
+            </button>
+          )}
+        </div>
         <div className="course-card-name" title={seg.name}>{seg.name}</div>
         <div className="course-card-meta">
           {seg.total_videos} videos · {seg.completed_videos} completed<br />
-          {watchHrs}h watched
+          {watchHrs}h watched<br/>
+          👥 {seg.enrolled_count || 0} enrolled
           {seg.uploaded_by_username && (
             <div style={{ marginTop: 6, fontSize: 11, color: 'var(--primary-light)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <span className="online-dot" style={{ width: 6, height: 6, margin: 0, background: 'var(--primary-light)' }} />
@@ -199,10 +232,10 @@ function CourseCard({ seg, subscribed, onSubscribe, onUnsubscribe }: {
             </div>
           )}
         </div>
-        <div className="progress-outer" style={{ marginBottom: 8 }}>
+        <div className="progress-outer" style={{ marginBottom: 8, marginTop: 'auto' }}>
           <div className="progress-inner" style={{ width: `${pct}%` }} />
         </div>
-        <details style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+        <details style={{ fontSize: 13, color: 'var(--text-secondary)' }} onClick={e => e.preventDefault()}>
           <summary style={{ cursor: 'pointer', color: 'var(--primary-light)', fontWeight: 600, marginBottom: 4 }}>
             Description
           </summary>
@@ -210,26 +243,17 @@ function CourseCard({ seg, subscribed, onSubscribe, onUnsubscribe }: {
             {desc}
           </p>
         </details>
-      </div>
-      <div className="course-card-buttons">
+      </Link>
+      
+      <div className="course-card-buttons" style={{ marginTop: 12 }}>
         {subscribed ? (
-          <>
-            <Link href="/courses" className="btn btn-secondary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
-              📖 Open
-            </Link>
-            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => onUnsubscribe(seg.id)}>
-              Unsubscribe
-            </button>
-          </>
+          <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => onUnsubscribe(seg.id)}>
+            Unsubscribe
+          </button>
         ) : (
-          <>
-            <button className="btn btn-ghost btn-sm" style={{ flex: 1, opacity: 0.4, cursor: 'not-allowed' }} disabled>
-              🔒 Open
-            </button>
-            <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => onSubscribe(seg.id)}>
-              Subscribe
-            </button>
-          </>
+          <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => onSubscribe(seg.id)}>
+            Subscribe
+          </button>
         )}
       </div>
     </div>

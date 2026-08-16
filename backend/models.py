@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS users (
     display_name    TEXT    NOT NULL DEFAULT '',
     created_at      REAL    NOT NULL DEFAULT (strftime('%s','now')),
     last_active     REAL    NOT NULL DEFAULT 0,
-    is_admin        INTEGER NOT NULL DEFAULT 0
+    is_admin        INTEGER NOT NULL DEFAULT 0,
+    current_video_id INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -129,7 +130,8 @@ _MIGRATIONS = [
     "UPDATE users SET is_admin = 1 WHERE username = 'vbsoni'",
     "ALTER TABLE videos ADD COLUMN is_restricted INTEGER NOT NULL DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS user_video_access (user_id INTEGER NOT NULL REFERENCES users(id), video_id INTEGER NOT NULL REFERENCES videos(id), PRIMARY KEY (user_id, video_id))",
-    "CREATE TABLE IF NOT EXISTS user_segment_subscriptions (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))"
+    "CREATE TABLE IF NOT EXISTS user_segment_subscriptions (user_id INTEGER NOT NULL REFERENCES users(id), segment_id INTEGER NOT NULL REFERENCES segments(id), PRIMARY KEY (user_id, segment_id))",
+    "ALTER TABLE users ADD COLUMN current_video_id INTEGER"
 ]
 
 
@@ -328,15 +330,24 @@ def delete_notice(notice_id: int):
 def get_all_segments(user_id: int = None) -> list[dict]:
     with _conn() as c:
         if user_id is None:
-            rows = c.execute("SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name").fetchall()
+            rows = c.execute("""
+                SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name,
+                (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count
+                FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name
+            """).fetchall()
         else:
             user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
             is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
-                rows = c.execute("SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name").fetchall()
+                rows = c.execute("""
+                    SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name,
+                    (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count
+                    FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name
+                """).fetchall()
             else:
                 rows = c.execute("""
-                    SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name 
+                    SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name,
+                    (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count
                     FROM segments s 
                     LEFT JOIN users u ON s.uploaded_by = u.id
                     WHERE s.is_restricted = 0 
@@ -832,7 +843,8 @@ def get_segment_stats(user_id: int) -> list[dict]:
                     s.id, s.name, s.icon, s.description, s.is_restricted,
                     COUNT(v.id) as total_videos,
                     COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
-                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds,
+                    (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count
                 FROM segments s
                 LEFT JOIN videos v ON v.segment_id = s.id
                 LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
@@ -846,7 +858,8 @@ def get_segment_stats(user_id: int) -> list[dict]:
                     s.id, s.name, s.icon, s.description, s.is_restricted,
                     COUNT(v.id) as total_videos,
                     COALESCE(SUM(CASE WHEN p.completed = 1 THEN 1 ELSE 0 END), 0) as completed_videos,
-                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds
+                    COALESCE(SUM(p.watch_seconds), 0) as watch_seconds,
+                    (SELECT COUNT(*) FROM user_segment_subscriptions uss WHERE uss.segment_id = s.id) as enrolled_count
                 FROM segments s
                 LEFT JOIN videos v ON v.segment_id = s.id
                 LEFT JOIN progress p ON p.video_id = v.id AND p.user_id = ?
@@ -927,10 +940,10 @@ def get_daily_watch_activity(user_id: int, days: int = 30) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def ping_user(user_id: int):
-    """Update the user's last_active timestamp."""
+def ping_user(user_id: int, video_id: int = None):
+    """Update the user's last_active timestamp and current video."""
     with _conn() as c:
-        c.execute("UPDATE users SET last_active = ? WHERE id = ?", (time.time(), user_id))
+        c.execute("UPDATE users SET last_active = ?, current_video_id = ? WHERE id = ?", (time.time(), video_id, user_id))
         c.commit()
 
 def get_online_users(minutes: int = 5) -> list[dict]:
@@ -938,8 +951,18 @@ def get_online_users(minutes: int = 5) -> list[dict]:
     with _conn() as c:
         cutoff = time.time() - (minutes * 60)
         rows = c.execute(
-            "SELECT username, display_name FROM users WHERE last_active >= ? ORDER BY last_active DESC",
+            "SELECT username, display_name, is_admin FROM users WHERE last_active >= ? ORDER BY last_active DESC",
             (cutoff,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+def get_watching_users(video_id: int, minutes: int = 2) -> list[dict]:
+    """Get users who are currently watching a specific video (pinged within last N minutes)."""
+    with _conn() as c:
+        cutoff = time.time() - (minutes * 60)
+        rows = c.execute(
+            "SELECT username, display_name, is_admin FROM users WHERE current_video_id = ? AND last_active >= ? ORDER BY last_active DESC",
+            (video_id, cutoff)
         ).fetchall()
         return [dict(r) for r in rows]
 
