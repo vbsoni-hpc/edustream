@@ -12,15 +12,13 @@ import { formatDuration } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 
 export default function GlobalPlayer() {
-  const { videoId, isPiP, setIsPiP, setVideoId } = useGlobalPlayer();
+  const { videoId, isPiP, setIsPiP, setVideoId, mountNode } = useGlobalPlayer();
   const { token } = useAuth();
   const [video, setVideo] = useState<any>(null);
   const pathname = usePathname();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
 
   // Auto-PiP when navigating away from /player
   const prevPathname = useRef(pathname);
@@ -30,25 +28,6 @@ export default function GlobalPlayer() {
     }
     prevPathname.current = pathname;
   }, [pathname, video, setIsPiP]);
-
-  // Robustly find mount node for inline player
-  useEffect(() => {
-    if (!isPiP && pathname === '/player') {
-      let timeoutId: any;
-      const checkNode = () => {
-        const node = document.getElementById('player-mount');
-        if (node) {
-          setMountNode(node);
-        } else {
-          timeoutId = setTimeout(checkNode, 50);
-        }
-      };
-      checkNode();
-      return () => clearTimeout(timeoutId);
-    } else {
-      setMountNode(null);
-    }
-  }, [isPiP, pathname]);
 
   useEffect(() => {
     if (!videoId || !token) {

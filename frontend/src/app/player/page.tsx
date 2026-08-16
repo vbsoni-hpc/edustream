@@ -25,6 +25,7 @@ function PlayerContent() {
   const { videoId: globalVideoId, setVideoId, setIsPiP } = useGlobalPlayer();
 
   const { token, user } = useAuth();
+  const { setMountNode } = useGlobalPlayer();
   const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
@@ -106,7 +107,13 @@ function PlayerContent() {
       )}
 
       {/* Video Player Mount Point */}
-      <div id="player-mount" style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}></div>
+      <div 
+        id="player-mount" 
+        ref={node => {
+          setMountNode(node);
+        }}
+        style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}
+      ></div>
 {/* Watching Now */}
       <WatchingNow videoId={video.id} token={token!} />
 

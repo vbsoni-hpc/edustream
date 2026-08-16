@@ -8,6 +8,8 @@ type GlobalPlayerContextType = {
   setVideoId: (id: number) => void;
   isPiP: boolean;
   setIsPiP: (val: boolean) => void;
+  mountNode: HTMLElement | null;
+  setMountNode: (node: HTMLElement | null) => void;
 };
 
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
@@ -15,6 +17,7 @@ const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(u
 export function GlobalPlayerProvider({ children }: { children: React.ReactNode }) {
   const [videoId, setVideoIdState] = useState<number>(0);
   const [isPiP, setIsPiP] = useState<boolean>(false);
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   };
 
   return (
-    <GlobalPlayerContext.Provider value={{ videoId, setVideoId, isPiP, setIsPiP }}>
+    <GlobalPlayerContext.Provider value={{ videoId, setVideoId, isPiP, setIsPiP, mountNode, setMountNode }}>
       {children}
     </GlobalPlayerContext.Provider>
   );
