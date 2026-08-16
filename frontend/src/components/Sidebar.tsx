@@ -111,7 +111,7 @@ export default function Sidebar() {
 
 
       {!isCollapsed ? (
-        <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, marginTop: 8 }}>
+        <div style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 0, paddingTop: 16, flex: 1, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              {unreadCount > 0 && <span style={{ background: 'var(--danger)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 'bold' }}>{unreadCount} New</span>}
           </div>
