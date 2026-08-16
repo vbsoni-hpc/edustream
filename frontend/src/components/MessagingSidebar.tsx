@@ -98,7 +98,7 @@ function Inbox({ token }: { token: string }) {
 
   useEffect(() => {
     // Create audio context only once
-    audioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    audioRef.current = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAAMAAAAAAB54AAB/4gAAAAAAAAC1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABaAAAAAAAwAAAAAAHngAAH/iAAAAAAAAAA=');
   }, []);
 
   useEffect(() => {

@@ -8,6 +8,30 @@ import { timeAgo } from '@/lib/utils';
 export function FloatingChat() {
   const { token, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadGlobal, setUnreadGlobal] = useState(false);
+  const lastIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!token || isOpen) {
+       setUnreadGlobal(false);
+       return;
+    }
+    const checkUnread = async () => {
+      try {
+        const res = await messagingApi.getGroupMessages();
+        const msgs = res.messages.reverse();
+        if (msgs.length > 0) {
+          const latestId = msgs[msgs.length - 1].id;
+          if (lastIdRef.current !== null && latestId > lastIdRef.current) {
+            setUnreadGlobal(true);
+          }
+          lastIdRef.current = latestId;
+        }
+      } catch (e) {}
+    };
+    const interval = setInterval(checkUnread, 10000);
+    return () => clearInterval(interval);
+  }, [token, isOpen]);
 
   if (!token || !user) return null;
 
@@ -15,10 +39,18 @@ export function FloatingChat() {
     <>
       <button
         className="floating-chat-button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); setUnreadGlobal(false); }}
         title="Chat & Hangout"
+        style={{ position: 'relative' }}
       >
         {isOpen ? '✕' : '💬'}
+        {!isOpen && unreadGlobal && (
+          <span style={{
+            position: 'absolute', top: -2, right: -2, width: 12, height: 12,
+            background: 'var(--danger)', borderRadius: '50%',
+            border: '2px solid var(--bg-card)'
+          }} />
+        )}
       </button>
 
       {isOpen && (
@@ -48,7 +80,7 @@ function GlobalChat({ token, user }: { token: string, user: any }) {
 
   useEffect(() => {
     setIsMuted(localStorage.getItem('chat_muted') === 'true');
-    audioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    audioRef.current = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAAMAAAAAAB54AAB/4gAAAAAAAAC1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABaAAAAAAAwAAAAAAHngAAH/iAAAAAAAAAA=');
   }, []);
 
   const toggleMute = () => {

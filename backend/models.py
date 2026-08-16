@@ -252,7 +252,7 @@ def get_unread_messages(user_id: int) -> list[dict]:
             FROM messages m
             JOIN users u ON m.sender_id = u.id
             WHERE m.recipient_id = ? AND m.is_read = 0
-            ORDER BY m.created_at ASC
+            ORDER BY m.created_at DESC
         """, (user_id,)).fetchall()
         return [dict(r) for r in rows]
 
@@ -264,7 +264,7 @@ def get_group_messages(limit: int = 50) -> list[dict]:
             FROM messages m
             JOIN users u ON m.sender_id = u.id
             WHERE m.recipient_id = 0
-            ORDER BY m.created_at ASC
+            ORDER BY m.created_at DESC
             LIMIT ?
         """, (limit,)).fetchall()
         return [dict(r) for r in rows]
@@ -281,7 +281,7 @@ def get_new_group_messages_since(last_id: int) -> list[dict]:
             FROM messages m
             JOIN users u ON m.sender_id = u.id
             WHERE m.recipient_id = 0 AND m.id > ?
-            ORDER BY m.created_at ASC
+            ORDER BY m.created_at DESC
         """, (last_id,)).fetchall()
         return [dict(r) for r in rows]
 
