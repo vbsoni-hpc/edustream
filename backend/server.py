@@ -985,6 +985,22 @@ async def course_activity(segment_id: int):
 #  User Profiles
 # ═══════════════════════════════════════════════════════════
 
+
+@app.put("/api/profile")
+async def update_profile(req: ProfileUpdateRequest, user: dict = Depends(get_current_user)):
+    from backend.models import update_user_profile
+    await update_user_profile(
+        user_id=user['user_id'],
+        display_name=req.display_name,
+        institute=req.institute,
+        bio=req.bio,
+        location=req.location,
+        work=req.work,
+        avatar_url=req.avatar_url,
+        cover_url=req.cover_url
+    )
+    return {"status": "ok"}
+
 @app.get("/api/profile/{username}")
 async def get_profile(username: str):
     """Get public profile for a user."""
@@ -1387,4 +1403,65 @@ async def route_delete_video(video_id: int, user: dict = Depends(get_current_use
 @app.head("/")
 @app.get("/")
 def health_check():
+    return {"status": "ok"}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Blogs Endpoints
+# ═══════════════════════════════════════════════════════════
+
+class BlogCreateRequest(BaseModel):
+    title: str
+    content: str
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str
+    institute: str
+    bio: str
+    location: str
+    work: str
+    avatar_url: str
+    cover_url: str
+
+@app.get("/api/blogs")
+async def fetch_blogs(limit: int = 50, offset: int = 0, user: dict = Depends(get_current_user)):
+    from backend.models import get_all_blogs
+    blogs = await get_all_blogs(limit, offset)
+    return {"blogs": blogs}
+
+@app.get("/api/blogs/user/{username}")
+async def fetch_user_blogs(username: str, limit: int = 50, offset: int = 0, user: dict = Depends(get_current_user)):
+    from backend.models import get_user_blogs
+    blogs = await get_user_blogs(username, limit, offset)
+    return {"blogs": blogs}
+
+@app.get("/api/blogs/{blog_id}")
+async def fetch_blog(blog_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import get_blog_by_id
+    blog = await get_blog_by_id(blog_id)
+    if not blog:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return {"blog": blog}
+
+@app.post("/api/blogs")
+async def add_blog(req: BlogCreateRequest, user: dict = Depends(get_current_user)):
+    from backend.models import create_blog
+    
+    blog = await create_blog(user['user_id'], req.title, req.content)
+    return {"blog": blog}
+
+@app.put("/api/blogs/{blog_id}")
+async def edit_blog(blog_id: int, req: BlogCreateRequest, user: dict = Depends(get_current_user)):
+    from backend.models import update_blog
+    
+    blog = await update_blog(blog_id, user['user_id'], req.title, req.content)
+    if not blog:
+        raise HTTPException(status_code=404, detail="Blog not found or unauthorized")
+    return {"blog": blog}
+
+@app.delete("/api/blogs/{blog_id}")
+async def remove_blog(blog_id: int, user: dict = Depends(get_current_user)):
+    from backend.models import delete_blog
+    
+    await delete_blog(blog_id, user['user_id'])
     return {"status": "ok"}

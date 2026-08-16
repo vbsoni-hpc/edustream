@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { profileApi, friendsApi } from '@/lib/api';
+import { profileApi, friendsApi, blogsApi } from '@/lib/api';
 import AuthGuard from '@/components/AuthGuard';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -25,7 +25,9 @@ function ProfileContent() {
   const { user, token } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [friendship, setFriendship] = useState<any>(null);
+  const [blogs, setBlogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!username) return;
@@ -35,6 +37,7 @@ function ProfileContent() {
       if (token && p.id !== user?.id) {
         friendsApi.status(token, p.id).then(r => setFriendship(r.friendship)).catch(() => {});
       }
+      blogsApi.getUserBlogs(token || '', username, 20, 0).then(r => setBlogs(r.blogs || [])).catch(() => {});
     }).catch(() => {
       setProfile(null);
     }).finally(() => setLoading(false));
@@ -100,12 +103,21 @@ function ProfileContent() {
 
   return (
     <div className="fb-profile-container animate-fade-in">
+      {isEditing && (
+        <EditProfileModal 
+          profile={profile} 
+          token={token || ''} 
+          onClose={() => setIsEditing(false)} 
+          onSave={(p) => setProfile(p)} 
+        />
+      )}
+
       {/* Profile Cover & Header */}
       <div className="fb-profile-header">
-        <div className="fb-cover-photo" />
+        <div className="fb-cover-photo" style={{ backgroundImage: profile.cover_url ? `url(${profile.cover_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
         
         <div className="fb-profile-avatar-wrapper">
-          <div className="fb-profile-avatar">
+          <div className="fb-profile-avatar" style={{ backgroundImage: profile.avatar_url ? `url(${profile.avatar_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", color: profile.avatar_url ? 'transparent' : 'inherit' }}>
             {(profile.display_name || '?')[0].toUpperCase()}
           </div>
           {profile.is_studying && <span className="online-dot-pulse" style={{ position: 'absolute', bottom: 12, right: 12, width: 20, height: 20, border: '3px solid var(--bg-card)' }} />}
@@ -120,7 +132,11 @@ function ProfileContent() {
         </div>
         
         <div className="fb-profile-actions">
-          {friendshipButton()}
+          {isOwnProfile ? (
+            <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>Edit Profile</button>
+          ) : (
+            friendshipButton()
+          )}
         </div>
       </div>
 
@@ -131,6 +147,21 @@ function ProfileContent() {
           {/* About / Intro */}
           <div className="glass-card-static">
             <h3 className="fb-card-title">Intro</h3>
+
+            {profile.bio && <div style={{ marginBottom: 16, fontSize: 14, color: 'var(--text-primary)', textAlign: 'center' }}>{profile.bio}</div>}
+            {profile.work && (
+              <div className="fb-stat-row">
+                <span className="fb-stat-icon">💼</span>
+                <span>Works at <strong>{profile.work}</strong></span>
+              </div>
+            )}
+            {profile.location && (
+              <div className="fb-stat-row">
+                <span className="fb-stat-icon">📍</span>
+                <span>Lives in <strong>{profile.location}</strong></span>
+              </div>
+            )}
+
             <div className="fb-stat-row">
               <span className="fb-stat-icon">🎓</span>
               <span><strong>{profile.completed_courses}</strong> courses completed</span>
@@ -174,6 +205,28 @@ function ProfileContent() {
 
         {/* Right Column (Wall / Activity) */}
         <div className="fb-profile-main">
+          {/* Blogs / Wall */}
+          {blogs.length > 0 && (
+            <div className="glass-card-static" style={{ marginBottom: 24 }}>
+              <h3 className="fb-card-title">📝 Posts</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {blogs.map(blog => (
+                  <div key={blog.id} className="card" style={{ padding: 16, background: 'var(--bg-main)', borderRadius: 8, border: '1px solid var(--border-card)' }}>
+                    <h4 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
+                      <Link href={`/blogs/${blog.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{blog.title}</Link>
+                    </h4>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                      {new Date(blog.created_at * 1000).toLocaleDateString()}
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: '100px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                      {blog.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="glass-card-static">
             <h3 className="fb-card-title">Activity Feed</h3>
             
@@ -224,6 +277,85 @@ function ProfileContent() {
             
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+function EditProfileModal({ profile, token, onClose, onSave }: { profile: any, token: string, onClose: () => void, onSave: (p: any) => void }) {
+  const [formData, setFormData] = useState({
+    display_name: profile.display_name || '',
+    institute: profile.institute || '',
+    bio: profile.bio || '',
+    location: profile.location || '',
+    work: profile.work || '',
+    avatar_url: profile.avatar_url || '',
+    cover_url: profile.cover_url || ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await profileApi.update(token, formData);
+      onSave({ ...profile, ...formData });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: 500, background: 'var(--bg-card)', padding: 24, borderRadius: 12, maxHeight: '90vh', overflowY: 'auto' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Edit Profile</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Display Name</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.display_name} onChange={e => setFormData({...formData, display_name: e.target.value})} required />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Bio</label>
+            <textarea className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} rows={3} placeholder="A short bio..." />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Work</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.work} onChange={e => setFormData({...formData, work: e.target.value})} placeholder="Software Engineer at Acme Corp" />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Education / Institute</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.institute} onChange={e => setFormData({...formData, institute: e.target.value})} placeholder="University Name" />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Location</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="San Francisco, CA" />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Avatar Image URL</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.avatar_url} onChange={e => setFormData({...formData, avatar_url: e.target.value})} placeholder="https://..." />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Cover Photo URL</label>
+            <input className="input-base" style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid var(--border-card)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} value={formData.cover_url} onChange={e => setFormData({...formData, cover_url: e.target.value})} placeholder="https://..." />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

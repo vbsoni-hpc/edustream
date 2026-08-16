@@ -220,6 +220,35 @@ export const aiApi = {
     }),
 };
 
+// ── Blogs ─────────────────────────────────────────────────
+export const blogsApi = {
+  getAll: (token: string, limit = 50, offset = 0) =>
+    request<{ blogs: any[] }>(`/api/blogs?limit=${limit}&offset=${offset}`, { token }),
+  
+  getUserBlogs: (token: string, username: string, limit = 50, offset = 0) =>
+    request<{ blogs: any[] }>(`/api/blogs/user/${username}?limit=${limit}&offset=${offset}`, { token }),
+  
+  getById: (token: string, id: number) =>
+    request<{ blog: any }>(`/api/blogs/${id}`, { token }),
+  
+  create: (token: string, title: string, content: string) =>
+    request<{ blog: any }>('/api/blogs', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ title, content }),
+    }),
+  
+  update: (token: string, id: number, title: string, content: string) =>
+    request<{ blog: any }>(`/api/blogs/${id}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ title, content }),
+    }),
+  
+  delete: (token: string, id: number) =>
+    request(`/api/blogs/${id}`, { method: 'DELETE', token }),
+};
+
 // ── Import API ────────────────────────────────────────
 export const importApi = {
   youtube: (token: string, url: string, icon = '▶️', description = '') =>
@@ -332,8 +361,12 @@ export const trendingApi = {
 
 // ── Profiles ──────────────────────────────────────────────
 export const profileApi = {
-  get: (username: string) =>
-    request<any>(`/api/profile/${username}`),
+  get: (username: string) => request<any>(`/api/profile/${username}`),
+  update: (token: string, data: any) => request<any>('/api/profile', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(data)
+  }),
   getById: (userId: number) =>
     request<any>(`/api/profile/id/${userId}`),
 };

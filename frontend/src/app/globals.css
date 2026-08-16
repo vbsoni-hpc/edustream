@@ -128,7 +128,7 @@ a {
   margin-right: auto;
   padding: 32px 40px;
   min-height: calc(100vh - 60px);
-  max-width: 1200px;
+  max-width: 1400px;
   width: 100%;
   overflow-x: hidden;
 }
@@ -188,14 +188,18 @@ a {
 
 .three-column-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 320px;
-  gap: 32px;
+  grid-template-columns: 200px minmax(0, 1fr) 280px;
+  gap: 20px;
   align-items: start;
 }
 
 @media (max-width: 1024px) {
   .three-column-grid {
     grid-template-columns: 1fr;
+  }
+  .three-column-grid > .left-column,
+  .three-column-grid > .right-column {
+    display: none !important;
   }
 }
 

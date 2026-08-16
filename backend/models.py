@@ -39,7 +39,12 @@ CREATE TABLE IF NOT EXISTS users (
     last_active     REAL    NOT NULL DEFAULT 0,
     is_admin        INTEGER NOT NULL DEFAULT 0,
     current_video_id INTEGER,
-    institute       TEXT    NOT NULL DEFAULT ''
+    institute       TEXT    NOT NULL DEFAULT '',
+    bio             TEXT    NOT NULL DEFAULT '',
+    location        TEXT    NOT NULL DEFAULT '',
+    work            TEXT    NOT NULL DEFAULT '',
+    avatar_url      TEXT    NOT NULL DEFAULT '',
+    cover_url       TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -173,6 +178,16 @@ CREATE TABLE IF NOT EXISTS study_session_members (
 
 # Migration: add module_id to existing videos table if missing
 _MIGRATIONS = [
+    """
+CREATE TABLE IF NOT EXISTS blogs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    title       TEXT    NOT NULL,
+    content     TEXT    NOT NULL,
+    created_at  REAL    NOT NULL DEFAULT (strftime('%s','now')),
+    updated_at  REAL    NOT NULL DEFAULT (strftime('%s','now'))
+);
+""",
     "ALTER TABLE videos ADD COLUMN module_id INTEGER REFERENCES modules(id)",
     "ALTER TABLE users ADD COLUMN last_active REAL NOT NULL DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS notices (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
@@ -196,6 +211,12 @@ _MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS study_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, segment_id INTEGER NOT NULL REFERENCES segments(id), video_id INTEGER REFERENCES videos(id), created_by INTEGER NOT NULL REFERENCES users(id), title TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 1, video_position REAL NOT NULL DEFAULT 0, created_at REAL NOT NULL DEFAULT (strftime('%s','now')))",
     "CREATE TABLE IF NOT EXISTS study_session_members (session_id INTEGER NOT NULL REFERENCES study_sessions(id), user_id INTEGER NOT NULL REFERENCES users(id), joined_at REAL NOT NULL DEFAULT (strftime('%s','now')), PRIMARY KEY (session_id, user_id))",
     "ALTER TABLE users ADD COLUMN institute TEXT NOT NULL DEFAULT ''",
+
+    "ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN location TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN work TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN cover_url TEXT NOT NULL DEFAULT ''",
 ]
 
 
@@ -1810,3 +1831,81 @@ def end_study_session(session_id: int, user_id: int) -> bool:
         c.commit()
         return True
 
+
+
+# ═══════════════════════════════════════════════════════════
+#  Blog Helpers
+# ═══════════════════════════════════════════════════════════
+
+async def create_blog(user_id: int, title: str, content: str):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute(
+            "INSERT INTO blogs (user_id, title, content) VALUES (?, ?, ?)",
+            (user_id, title, content)
+        )
+        await db.commit()
+        
+        async with db.execute("SELECT id, user_id, title, content, created_at, updated_at FROM blogs WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            _trigger_backup()
+            return dict(row)
+
+async def get_all_blogs(limit: int = 50, offset: int = 0):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT b.*, u.username, u.display_name FROM blogs b JOIN users u ON b.user_id = u.id ORDER BY b.created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_user_blogs(username: str, limit: int = 50, offset: int = 0):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT b.*, u.username, u.display_name FROM blogs b JOIN users u ON b.user_id = u.id WHERE u.username = ? ORDER BY b.created_at DESC LIMIT ? OFFSET ?",
+            (username, limit, offset)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_blog_by_id(blog_id: int):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT b.*, u.username, u.display_name FROM blogs b JOIN users u ON b.user_id = u.id WHERE b.id = ?",
+            (blog_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def update_blog(blog_id: int, user_id: int, title: str, content: str):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute(
+            "UPDATE blogs SET title = ?, content = ?, updated_at = (strftime('%s','now')) WHERE id = ? AND user_id = ?",
+            (title, content, blog_id, user_id)
+        )
+        await db.commit()
+        _trigger_backup()
+        return await get_blog_by_id(blog_id)
+
+async def delete_blog(blog_id: int, user_id: int):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute(
+            "DELETE FROM blogs WHERE id = ? AND user_id = ?",
+            (blog_id, user_id)
+        )
+        await db.commit()
+        _trigger_backup()
+
+
+async def update_user_profile(user_id: int, display_name: str, institute: str, bio: str, location: str, work: str, avatar_url: str, cover_url: str):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute(
+            "UPDATE users SET display_name = ?, institute = ?, bio = ?, location = ?, work = ?, avatar_url = ?, cover_url = ? WHERE id = ?",
+            (display_name, institute, bio, location, work, avatar_url, cover_url, user_id)
+        )
+        await db.commit()
+        _trigger_backup()

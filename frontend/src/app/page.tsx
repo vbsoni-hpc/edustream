@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { dashboardApi, subscriptionsApi, importApi, presenceApi, trendingApi, gamificationApi, sessionsApi } from '@/lib/api';
+import { dashboardApi, subscriptionsApi, importApi, presenceApi, trendingApi, gamificationApi, sessionsApi, blogsApi } from '@/lib/api';
 import { formatHours } from '@/lib/utils';
 import AuthGuard from '@/components/AuthGuard';
 import Link from 'next/link';
@@ -28,6 +28,7 @@ function Dashboard() {
   const [dailyLb, setDailyLb] = useState<any[]>([]);
   const [weeklyLb, setWeeklyLb] = useState<any[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<any[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [loading, setLoading] = useState(true);
   // New social state
@@ -64,6 +65,7 @@ function Dashboard() {
         gamificationApi.getXP(token).then(r => setXpData(r)),
         gamificationApi.getStreak(token).then(r => setStreakData(r)),
         sessionsApi.list().then(r => setSessions(r.sessions)),
+        blogsApi.getAll(token).then(r => setBlogs(r.blogs || []))
       ]).catch(() => {});
     } catch (err) {
       console.error('Dashboard fetch error:', err);
@@ -115,18 +117,25 @@ function Dashboard() {
         {/* Left Column: Identity & Shortcuts */}
         <div className="left-column" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* User Profile Shortcut */}
-          <Link href={`/profile/${user?.username}`} style={{ textDecoration: 'none' }}>
-            <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-card)' }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 'bold' }}>
-                {user?.display_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 16 }}>{user?.display_name || user?.username}</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>@{user?.username}</div>
-              </div>
+          {/* Blogs Options */}
+          <div>
+            <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>Blogs</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Link href="/blogs" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                <span style={{ fontSize: 20 }}>📰</span> All Blogs
+              </Link>
+              <Link href={`/blogs?user=${user?.username}`} className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                <span style={{ fontSize: 20 }}>👤</span> My Blogs
+              </Link>
+              <Link href="/blogs/new" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                <span style={{ fontSize: 20 }}>✍️</span> Write a Post
+              </Link>
             </div>
-          </Link>
+          </div>
+          
+          <div className="divider" style={{ height: 1, background: 'var(--border-card)', margin: '12px 0' }} />
+
+
 
           {/* My Shortcuts */}
           <div>
@@ -138,27 +147,6 @@ function Dashboard() {
               <Link href="/player" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
                 <span style={{ fontSize: 20 }}>🔖</span> Saved Videos
               </Link>
-            </div>
-          </div>
-
-          <div className="divider" style={{ height: 1, background: 'var(--border-card)' }} />
-
-          {/* Study Groups */}
-          <div>
-            <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>Study Groups</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, cursor: 'pointer' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(108, 99, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💻</div>
-                Web Dev Bootcamp
-              </div>
-              <div className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, cursor: 'pointer' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(52, 199, 89, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📊</div>
-                Advanced Calculus
-              </div>
-              <div className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, cursor: 'pointer' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255, 149, 0, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🎨</div>
-                UI/Design Cohort
-              </div>
             </div>
           </div>
 
@@ -256,6 +244,40 @@ function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* 📰 Community Feed (Blogs interspersed) */}
+          <h4 className="section-title">📰 Feed</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
+            {blogs.length === 0 ? (
+              <div className="empty-state" style={{ padding: '24px' }}>
+                <p className="empty-state-text">No posts yet. Be the first to share!</p>
+              </div>
+            ) : (
+              blogs.map(blog => (
+                <div key={blog.id} className="card" style={{ padding: 24, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border-card)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                      {blog.display_name?.[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <Link href={`/profile/${blog.username}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                        {blog.display_name}
+                      </Link>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        @{blog.username} • {new Date(blog.created_at * 1000).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
+                    <Link href={`/blogs/${blog.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{blog.title}</Link>
+                  </h2>
+                  <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: '150px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+                    {blog.content}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
 
           {/* 📚 My Courses */}
           <h4 className="section-title">📚 My Courses</h4>
