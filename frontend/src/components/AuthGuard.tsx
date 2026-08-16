@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { FloatingChat } from '@/components/FloatingChat';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -28,5 +29,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <FloatingChat />
+    </>
+  );
 }
