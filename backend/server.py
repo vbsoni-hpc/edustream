@@ -911,6 +911,7 @@ async def import_telegram(req: TelegramImportRequest, user: dict = Depends(get_c
         logger.error(f"Telegram import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/analytics/daily")
 async def analytics_daily(days: int = Query(30, ge=1), user: dict = Depends(get_current_user)):
     data = get_daily_watch_activity(user["user_id"], days)
     return {"activity": data}
