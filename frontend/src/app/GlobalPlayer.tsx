@@ -56,22 +56,8 @@ export default function GlobalPlayer() {
   // and this GlobalPlayer will use position: absolute or fixed based on PiP state.
 
 
-  const containerStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: 24,
-    right: 24,
-    width: 350,
-    zIndex: 9999,
-    borderRadius: 12,
-    overflow: 'hidden',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-    background: '#0E1117',
-    border: '1px solid rgba(255,255,255,0.1)',
-    transition: 'all 0.3s ease',
-  };
-
   const content = (
-    <div ref={nodeRef} style={isPiP ? containerStyle : { width: '100%' }}>
+    <div ref={nodeRef} className={isPiP ? "pip-container" : ""} style={!isPiP ? { width: '100%' } : {}}>
        {isPiP && (
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#1A1D29' }}>
             <div className="player-drag-handle" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, fontWeight: 600, cursor: 'move', marginRight: 12 }}>

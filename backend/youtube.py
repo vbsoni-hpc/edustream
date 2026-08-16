@@ -11,7 +11,7 @@ def process_youtube_playlist(url: str, icon: str = "▶️", description: str = 
     Returns the new segment_id.
     """
     ydl_opts = {
-        'extract_flat': True,
+        'extract_flat': 'in_playlist',
         'quiet': True,
         'no_warnings': True,
         'ignoreerrors': True, # Skip unavailable videos
