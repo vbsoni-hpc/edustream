@@ -116,7 +116,7 @@ function GlobalChat({ token, user }: { token: string, user: any }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1 }}>Global Chat</h3>
         <button
           onClick={toggleMute}
@@ -125,6 +125,9 @@ function GlobalChat({ token, user }: { token: string, user: any }) {
         >
           {isMuted ? '🔕' : '🔔'}
         </button>
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, fontStyle: 'italic' }}>
+        🤖 Chat is monitored by AI Moderator.
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 8, marginBottom: 8 }}>

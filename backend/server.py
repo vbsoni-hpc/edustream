@@ -520,9 +520,18 @@ async def group_messages(limit: int = Query(50, ge=1)):
     return {"messages": data}
 
 
+BAD_WORDS = ["idiot", "fuck", "shit", "bitch", "asshole", "stupid", "crap", "bastard"]
+
 @app.post("/api/messages/group")
 async def send_group_message(req: MessageRequest, user: dict = Depends(get_current_user)):
-    send_message(user["user_id"], 0, req.content)
+    content = req.content
+    content_lower = content.lower()
+    is_bad = any(word in content_lower for word in BAD_WORDS)
+    
+    if is_bad:
+        content = "[Message deleted by AI Moderator]"
+
+    send_message(user["user_id"], 0, content)
     return {"status": "sent"}
 
 
