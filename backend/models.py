@@ -170,6 +170,8 @@ from contextlib import contextmanager
 @contextmanager
 def _conn():
     c = sqlite3.connect(str(DB_PATH), timeout=10.0)
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA synchronous=NORMAL")
     c.row_factory = sqlite3.Row
     try:
         with c:
