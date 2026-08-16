@@ -40,7 +40,7 @@ export default function GlobalPlayer() {
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
     bottom: 24,
-    right: 24,
+    left: 24,
     width: 350,
     zIndex: 9999,
     borderRadius: 12,
@@ -51,18 +51,51 @@ export default function GlobalPlayer() {
     transition: 'all 0.3s ease',
   };
 
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+
+  // Auto-PiP when navigating away from /player
+  const prevPathname = useRef(pathname);
+  useEffect(() => {
+    if (prevPathname.current === '/player' && pathname !== '/player' && video) {
+      setIsPiP(true);
+    }
+    prevPathname.current = pathname;
+  }, [pathname, video, setIsPiP]);
+
+  // Robustly find mount node for inline player
+  useEffect(() => {
+    if (!isPiP && pathname === '/player') {
+      let timeoutId: any;
+      const checkNode = () => {
+        const node = document.getElementById('player-mount');
+        if (node) {
+          setMountNode(node);
+        } else {
+          timeoutId = setTimeout(checkNode, 50);
+        }
+      };
+      checkNode();
+      return () => clearTimeout(timeoutId);
+    } else {
+      setMountNode(null);
+    }
+  }, [isPiP, pathname]);
+
   if (!mounted) return null;
 
-  return (
-    <div style={containerStyle}>
-       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600 }}>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>{video.title}</span>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <span style={{ cursor: 'pointer', color: '#ff4d4f' }} onClick={() => setVideoId(0)} title="Close">✕</span>
-          </div>
-       </div>
+  const content = (
+    <div style={isPiP ? containerStyle : { width: '100%' }}>
+       {isPiP && (
+         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#1A1D29', fontSize: 13, fontWeight: 600 }}>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>{video.title}</span>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <span style={{ cursor: 'pointer', color: 'var(--primary-light)' }} onClick={() => { setIsPiP(false); window.location.href='/player'; }} title="Expand">⛶</span>
+              <span style={{ cursor: 'pointer', color: '#ff4d4f' }} onClick={() => setVideoId(0)} title="Close">✕</span>
+            </div>
+         </div>
+       )}
        
-       <div style={{ background: '#000', overflow: 'hidden' }}>
+       <div style={{ background: '#000', borderRadius: isPiP ? 0 : 16, overflow: 'hidden' }}>
          {isYoutube ? (
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe
@@ -86,6 +119,18 @@ export default function GlobalPlayer() {
        </div>
     </div>
   );
+
+  if (!isPiP && pathname === '/player') {
+    if (mountNode) {
+      const { createPortal } = require('react-dom');
+      return createPortal(content, mountNode);
+    }
+    return null; // Wait for mount node
+  }
+
+  if (!isPiP && pathname !== '/player') return null;
+
+  return content;
 }
 
 function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: any) {
