@@ -13,6 +13,9 @@ export default function GlobalPlayer() {
   const [video, setVideo] = useState<any>(null);
   const pathname = usePathname();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!videoId || !token) {
       setVideo(null);
@@ -32,9 +35,7 @@ export default function GlobalPlayer() {
   // we render it inline! Wait, to render it inline on /player, we can just use CSS classes.
   // Actually, if we are on /player, the player page will just render an empty div of height 500px, 
   // and this GlobalPlayer will use position: absolute or fixed based on PiP state.
-  
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+
 
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
