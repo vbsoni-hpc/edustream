@@ -22,11 +22,9 @@ export default function PlayerPage() {
 }
 
 function PlayerContent() {
-  const { videoId: globalVideoId, setVideoId, setIsPiP } = useGlobalPlayer();
+  const { videoId: globalVideoId, setVideoId, setIsPiP, setMountNode, video, setVideo } = useGlobalPlayer();
 
   const { token, user } = useAuth();
-  const { setMountNode } = useGlobalPlayer();
-  const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
   const [siblingVideos, setSiblingVideos] = useState<any[]>([]);
@@ -109,9 +107,7 @@ function PlayerContent() {
       {/* Video Player Mount Point */}
       <div 
         id="player-mount" 
-        ref={node => {
-          setMountNode(node);
-        }}
+        ref={setMountNode}
         style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}
       ></div>
 {/* Watching Now */}

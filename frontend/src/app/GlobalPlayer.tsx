@@ -12,9 +12,8 @@ import { formatDuration } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 
 export default function GlobalPlayer() {
-  const { videoId, isPiP, setIsPiP, setVideoId, mountNode } = useGlobalPlayer();
+  const { videoId, isPiP, setIsPiP, setVideoId, mountNode, video, setVideo } = useGlobalPlayer();
   const { token } = useAuth();
-  const [video, setVideo] = useState<any>(null);
   const pathname = usePathname();
 
   const [mounted, setMounted] = useState(false);
