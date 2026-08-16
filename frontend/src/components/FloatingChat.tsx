@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { messagingApi } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
+import { useGlobalPlayer } from '@/app/GlobalPlayerContext';
 
 export function FloatingChat() {
   const { token, user } = useAuth();
+  const { isPiP } = useGlobalPlayer();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadGlobal, setUnreadGlobal] = useState(false);
   const lastIdRef = useRef<number | null>(null);
@@ -41,7 +43,7 @@ export function FloatingChat() {
         className="floating-chat-button"
         onClick={() => { setIsOpen(!isOpen); setUnreadGlobal(false); }}
         title="Chat & Hangout"
-        style={{ position: 'relative' }}
+        style={{ position: 'relative', right: isPiP ? 'auto' : undefined, left: isPiP ? 24 : undefined }}
       >
         {isOpen ? '✕' : '💬'}
         {!isOpen && unreadGlobal && (
@@ -54,7 +56,7 @@ export function FloatingChat() {
       </button>
 
       {isOpen && (
-        <div className="floating-chat-widget">
+        <div className="floating-chat-widget" style={{ right: isPiP ? 'auto' : undefined, left: isPiP ? 24 : undefined }}>
           <div className="floating-chat-header">
             EduStream Hangout
           </div>

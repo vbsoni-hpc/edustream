@@ -40,7 +40,7 @@ export default function GlobalPlayer() {
   const containerStyle: React.CSSProperties = {
     position: 'fixed',
     bottom: 24,
-    left: 24,
+    right: 24,
     width: 350,
     zIndex: 9999,
     borderRadius: 12,
