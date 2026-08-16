@@ -106,7 +106,14 @@ export default function GlobalPlayer() {
          </div>
        )}
        
-       <div style={{ background: '#000', borderRadius: isPiP ? 0 : 16, overflow: 'hidden', display: (isPiP && isCollapsed) ? 'none' : 'block' }}>
+       <div style={{ 
+         background: '#000', 
+         borderRadius: isPiP ? 0 : 16, 
+         overflow: 'hidden', 
+         height: isCollapsed ? 0 : 'auto',
+         opacity: isCollapsed ? 0 : 1,
+         pointerEvents: isCollapsed ? 'none' : 'auto'
+       }}>
          {isYoutube ? (
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe
