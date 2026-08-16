@@ -235,10 +235,10 @@ async def login(req: AuthRequest):
     if not user or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid username or password")
     
-    token = create_access_token(user['user_id'], user["username"])
+    token = create_access_token(user['id'], user["username"])
     return {
         "token": token,
-        "user_id": user['user_id'],
+        "user_id": user['id'],
         "username": user["username"],
         "display_name": user["display_name"],
         "is_admin": bool(user.get("is_admin", 0)),
