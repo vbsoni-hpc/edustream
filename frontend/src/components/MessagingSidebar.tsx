@@ -9,6 +9,26 @@ export default function MessagingSidebar() {
   const { token, user } = useAuth();
   const [openSection, setOpenSection] = useState<'inbox' | 'dm' | null>(null);
   const [activeDmUser, setActiveDmUser] = useState<{ id: number; name: string } | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    const checkUnread = async () => {
+      try {
+        const res = await messagingApi.getUnread(token);
+        setUnreadCount(res.messages?.length || 0);
+      } catch (e) {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 10000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  useEffect(() => {
+    if (openSection === 'inbox') {
+      setUnreadCount(0); // optimistically clear
+    }
+  }, [openSection]);
 
   useEffect(() => {
     const handleOpenDm = (e: any) => {
@@ -34,12 +54,21 @@ export default function MessagingSidebar() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <Accordion
-          title={<div style={{display:'flex', alignItems:'center'}}><svg style={{width: 16, height: 16, marginRight: 6}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>Inbox</div>}
+          title={
+            <div style={{display:'flex', alignItems:'center'}}>
+              <svg style={{width: 16, height: 16, marginRight: 6}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+              Inbox
+              {openSection !== 'inbox' && unreadCount > 0 && (
+                <span style={{ marginLeft: 'auto', background: 'var(--danger)', width: 8, height: 8, borderRadius: '50%' }} />
+              )}
+            </div>
+          }
           isOpen={openSection === 'inbox'}
           onClick={() => setOpenSection(openSection === 'inbox' ? null : 'inbox')}
         >
           <Inbox token={token} />
         </Accordion>
+
 
         <Accordion
           title={<div style={{display:'flex', alignItems:'center'}}><svg style={{width: 16, height: 16, marginRight: 6}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>DM</div>}

@@ -1240,7 +1240,7 @@ a {
 .floating-chat-button {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 24px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -1265,7 +1265,7 @@ a {
 .floating-chat-widget {
   position: fixed;
   bottom: 96px;
-  right: 24px;
+  left: 24px;
   width: 340px;
   background: rgba(30, 41, 59, 0.95);
   backdrop-filter: blur(12px);
