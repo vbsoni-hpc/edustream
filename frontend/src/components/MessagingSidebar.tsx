@@ -236,11 +236,12 @@ function Accordion({ title, isOpen, onClick, children }: { title: React.ReactNod
         onClick={onClick}
         style={{
           padding: '10px 12px', background: 'var(--bg-card)', cursor: 'pointer',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          display: 'flex', alignItems: 'center', gap: 8,
           fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)'
         }}
       >
-        <span>{isOpen ? '⌄' : '›'} {title}</span>
+        <span style={{ fontSize: 12 }}>{isOpen ? '▼' : '▶'}</span>
+        <div style={{ flex: 1 }}>{title}</div>
       </div>
       <div style={{ padding: 12, background: 'rgba(26,29,41,0.4)', display: isOpen ? 'block' : 'none' }}>
         {children}
