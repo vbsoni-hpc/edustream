@@ -121,6 +121,16 @@ function SegmentsSection() {
     load();
   };
 
+  const handleToggleRestrict = async (id: number, current: boolean) => {
+    if (!token) return;
+    try {
+      await adminApi.updateSegment(token, id, { is_restricted: !current });
+      load();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div>
       <div className="glass-card-static mb-6">
@@ -146,7 +156,15 @@ function SegmentsSection() {
               <td>{s.icon}</td>
               <td>{s.name}</td>
               <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{s.description || '—'}</td>
-              <td>{s.is_restricted ? <span className="badge badge-danger">Yes</span> : <span className="badge badge-success">No</span>}</td>
+              <td>
+                <button 
+                  className={`btn btn-sm ${s.is_restricted ? 'btn-danger' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 8px' }}
+                  onClick={() => handleToggleRestrict(s.id, s.is_restricted)}
+                >
+                  {s.is_restricted ? 'Yes (Restricted)' : 'No (Public)'}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

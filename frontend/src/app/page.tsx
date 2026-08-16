@@ -104,22 +104,24 @@ function Dashboard() {
 
       {/* Last viewed segment progress */}
       {lastSeg && (
-        <div className="glass-card-static mb-6">
-          <div className="flex-between" style={{ marginBottom: 12 }}>
-            <span style={{ fontWeight: 600 }}>
-              Last Viewed Course: {lastSeg.icon} {lastSeg.name}
-            </span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-              {lastSeg.completed_videos}/{lastSeg.total_videos} videos · {formatHours(lastSeg.watch_seconds)} watched
-            </span>
+        <Link href="/player" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <div className="glass-card mb-6" style={{ cursor: 'pointer' }}>
+            <div className="flex-between" style={{ marginBottom: 12 }}>
+              <span style={{ fontWeight: 600 }}>
+                Last Viewed Course: {lastSeg.icon} {lastSeg.name}
+              </span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+                {lastSeg.completed_videos}/{lastSeg.total_videos} videos · {formatHours(lastSeg.watch_seconds)} watched
+              </span>
+            </div>
+            <div className="progress-outer">
+              <div
+                className="progress-inner"
+                style={{ width: `${lastSeg.total_videos > 0 ? (lastSeg.completed_videos / lastSeg.total_videos * 100) : 0}%` }}
+              />
+            </div>
           </div>
-          <div className="progress-outer">
-            <div
-              className="progress-inner"
-              style={{ width: `${lastSeg.total_videos > 0 ? (lastSeg.completed_videos / lastSeg.total_videos * 100) : 0}%` }}
-            />
-          </div>
-        </div>
+        </Link>
       )}
 
       {/* My Courses Carousel */}
