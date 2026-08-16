@@ -283,7 +283,7 @@ function OnlineUsers({ token }: { token: string }) {
             <span className="online-dot" style={{ width: 6, height: 6, margin: 0, background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
             {u.display_name}
           </span>
-          {u.is_admin && <span className="badge badge-success" style={{ fontSize: 9, padding: '2px 4px' }}>Admin</span>}
+          {!!u.is_admin && <span className="badge badge-success" style={{ fontSize: 9, padding: '2px 4px' }}>Admin</span>}
         </div>
       ))}
       {users.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No users online.</div>}
