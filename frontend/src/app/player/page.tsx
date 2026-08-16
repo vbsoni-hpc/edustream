@@ -25,16 +25,17 @@ function PlayerContent() {
   const { videoId: globalVideoId, setVideoId, setIsPiP, setMountNode, video, setVideo } = useGlobalPlayer();
 
   const { token, user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [isComplete, setIsComplete] = useState(false);
+  
+  const videoId = typeof window !== 'undefined' ? parseInt(localStorage.getItem('current_video_id') || '0') : 0;
+  
+  const [loading, setLoading] = useState(!video || video.id !== videoId);
+  const [isComplete, setIsComplete] = useState(video?.progress?.completed || false);
   const [siblingVideos, setSiblingVideos] = useState<any[]>([]);
   const [currentIdx, setCurrentIdx] = useState(-1);
 
-  const videoId = typeof window !== 'undefined' ? parseInt(localStorage.getItem('current_video_id') || '0') : 0;
-
   const loadVideo = useCallback(async (id: number) => {
     if (!token || !id) return;
-    setLoading(true);
+    if (!video || video.id !== id) setLoading(true);
     try {
       const v = await coursesApi.getVideo(token, id);
       setVideo(v);
@@ -52,7 +53,7 @@ function PlayerContent() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, video, setVideo]);
 
   useEffect(() => { if (videoId) loadVideo(videoId); }, [videoId, loadVideo]);
 
