@@ -57,12 +57,20 @@ def _build_backup_data() -> dict:
     segments = get_all_segments()
     modules = get_all_modules()
     videos = get_all_videos()
-    users = get_all_users_admin()
+    
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    
+    # Fetch users fully
+    user_rows = conn.execute("SELECT * FROM users").fetchall()
+    users = [dict(r) for r in user_rows]
+    
+    # Fetch blogs
+    blogs_rows = conn.execute("SELECT * FROM blogs").fetchall()
+    blogs = [dict(r) for r in blogs_rows]
     notices = get_all_notices()
 
     # Fetch all progress records directly
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
     progress_rows = conn.execute("""
         SELECT p.*, u.username, v.telegram_msg_id
         FROM progress p
@@ -197,6 +205,16 @@ def _build_backup_data() -> dict:
         "user_module_access": user_module_access,
         "user_video_access": user_video_access,
         "user_segment_subscriptions": user_segment_subscriptions,
+                "blogs": [
+            {
+                "user_id": b["user_id"],
+                "title": b["title"],
+                "content": b["content"],
+                "created_at": b["created_at"],
+                "updated_at": b["updated_at"],
+            }
+            for b in blogs
+        ],
         "progress": [
             {
                 "username": p["username"],
@@ -554,6 +572,20 @@ def _restore_data(data: dict):
                     p.get("last_watched_at", time.time()),
                 ))
                 restored_progress += 1
+        conn.commit()
+
+        
+        # Restore blogs
+        restored_blogs = 0
+        conn.execute("DELETE FROM blogs")
+        for b in data.get("blogs", []):
+            conn.execute("""
+                INSERT INTO blogs (user_id, title, content, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                b["user_id"], b["title"], b["content"], b.get("created_at", 0), b.get("updated_at", 0)
+            ))
+            restored_blogs += 1
         conn.commit()
 
         # 7. Restore messages (users already exist at this point)
