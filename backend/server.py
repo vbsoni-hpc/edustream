@@ -948,7 +948,7 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         messages = [system_msg] + req.messages[-5:]
         
         response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="openai",
             provider=Pollinations,
             messages=messages,
         )
