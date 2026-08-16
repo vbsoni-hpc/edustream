@@ -4,7 +4,7 @@ from backend.models import get_or_create_segment, upsert_youtube_video
 
 logger = logging.getLogger(__name__)
 
-def process_youtube_playlist(url: str, icon: str = "▶️", description: str = "") -> int:
+def process_youtube_playlist(url: str, icon: str = "▶️", description: str = "", user_id: int = None) -> int:
     """
     Extracts playlist information and videos from a YouTube URL.
     Creates a new segment for the playlist and inserts the videos into the database.
@@ -30,7 +30,8 @@ def process_youtube_playlist(url: str, icon: str = "▶️", description: str = 
         segment_id = get_or_create_segment(
             name=title, 
             icon=icon, 
-            description=description or f"YouTube Playlist: {title}"
+            description=description or f"YouTube Playlist: {title}",
+            uploaded_by=user_id
         )
         
         entries = info.get('entries', [])

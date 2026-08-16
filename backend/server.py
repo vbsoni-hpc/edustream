@@ -1,21 +1,28 @@
 """
 FastAPI backend server for the EdTech platform.
 
-Endpoints:
-- /api/auth/register, /api/auth/login   → User authentication
-- /api/stream/{msg_id}                   → MTProto video streaming with Range support
-- /api/progress/{video_id}              → Update watch progress
-- /api/complete/{video_id}              → Mark video as completed
-- /api/sync                             → Trigger Telegram channel sync
-- /api/videos                           → List all videos
+Endpoints cover:
+- Authentication (register, login)
+- Video streaming via MTProto
+- Progress tracking
+- Dashboard / stats
+- Courses (segments, modules, videos)
+- Subscriptions
+- Messaging (group chat, DMs, broadcast)
+- Users & online status
+- Admin CRUD
+- YouTube import
+- Analytics
+- AI Chat proxy
 """
 import logging
 import re
+import time
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List
 import asyncio
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
+from fastapi import FastAPI, Request, HTTPException, Depends, Header, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -34,6 +41,7 @@ from backend.auth import (
 from backend.models import (
     async_init_db,
     get_user_by_username,
+    get_user_by_id,
     create_user,
     get_or_create_segment,
     upsert_video,
@@ -41,6 +49,63 @@ from backend.models import (
     async_upsert_progress,
     async_mark_complete,
     async_get_video_by_msg_id,
+    # Dashboard / Stats
+    get_dashboard_stats,
+    get_segment_stats,
+    get_last_viewed_segment_stats,
+    get_leaderboard,
+    get_latest_notices,
+    get_all_notices,
+    add_notice,
+    delete_notice,
+    # Segments / Modules / Videos
+    get_all_segments,
+    get_videos_by_segment,
+    get_modules_by_segment,
+    get_videos_by_module,
+    get_video_by_id,
+    get_all_modules,
+    update_segment,
+    get_or_create_module,
+    update_module,
+    delete_module,
+    move_videos_to_module,
+    unassign_videos_from_module,
+    get_segment_leaderboard,
+    # Progress
+    get_user_progress,
+    get_video_progress,
+    # Subscriptions
+    get_user_subscriptions,
+    subscribe_to_segment,
+    unsubscribe_from_segment,
+    # Messages
+    get_group_messages,
+    send_message,
+    get_messages_for_user,
+    get_unread_messages,
+    mark_messages_read,
+    delete_all_messages,
+    # Users
+    get_all_users,
+    get_all_users_admin,
+    update_user_admin,
+    delete_user_admin,
+    ping_user,
+    get_online_users,
+    is_user_admin,
+    # Access control
+    get_user_segment_access,
+    set_user_segment_access,
+    get_user_module_access,
+    set_user_module_access,
+    get_user_video_access,
+    set_user_video_access,
+    update_video_restricted,
+    recover_missing_youtube_ids,
+    # Analytics
+    get_daily_watch_activity,
+    get_module_stats,
 )
 from backend.telegram_client import (
     get_client,
@@ -105,7 +170,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EdTech API", lifespan=lifespan)
 
-# Allow Streamlit (different port) to call us
+# Allow Next.js (different port) to call us
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -131,6 +196,13 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     user = verify_access_token(parts[1])
     if not user:
         raise HTTPException(401, "Invalid or expired token")
+    return user
+
+
+async def get_current_admin(user: dict = Depends(get_current_user)) -> dict:
+    """Ensure the current user is an admin."""
+    if not is_user_admin(user["user_id"]):
+        raise HTTPException(403, "Admin access required")
     return user
 
 
@@ -163,7 +235,13 @@ async def login(req: AuthRequest):
         raise HTTPException(401, "Invalid username or password")
     
     token = create_access_token(user["id"], user["username"])
-    return {"token": token, "user_id": user["id"], "username": user["username"]}
+    return {
+        "token": token,
+        "user_id": user["id"],
+        "username": user["username"],
+        "display_name": user["display_name"],
+        "is_admin": bool(user.get("is_admin", 0)),
+    }
 
 
 # ═══════════════════════════════════════════════════════════
@@ -228,11 +306,7 @@ async def stream_video(msg_id: int, request: Request):
                 yield chunk
         except Exception as e:
             logger.error(f"Streaming error for msg {msg_id} (sent {sent}/{content_length} bytes): {e}")
-            # If we haven't sent anything yet, we can't do much —
-            # the error will propagate. If we've sent partial data,
-            # the client will get a truncated response and may retry.
             if sent == 0:
-                # Yield empty to close the stream cleanly
                 return
 
     # Determine status code
@@ -243,7 +317,7 @@ async def stream_video(msg_id: int, request: Request):
         "Accept-Ranges": "bytes",
         "Content-Length": str(content_length),
         "Content-Range": f"bytes {start}-{end}/{file_size}",
-        "Cache-Control": "public, max-age=3600",  # Browser can cache chunks for 1 hour
+        "Cache-Control": "public, max-age=3600",
     }
 
     return StreamingResponse(
@@ -287,8 +361,523 @@ async def complete_video(
     return {"status": "completed"}
 
 
+@app.get("/api/progress")
+async def get_progress(user: dict = Depends(get_current_user)):
+    """Get all progress data for the current user."""
+    data = get_user_progress(user["user_id"])
+    return {"progress": data}
+
+
+@app.get("/api/progress/{video_id}")
+async def get_single_progress(
+    video_id: int,
+    user: dict = Depends(get_current_user),
+):
+    """Get progress for a single video."""
+    data = get_video_progress(user["user_id"], video_id)
+    return {"progress": data}
+
+
 # ═══════════════════════════════════════════════════════════
-#  Sync & video listing
+#  Dashboard endpoints
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/dashboard/stats")
+async def dashboard_stats(user: dict = Depends(get_current_user)):
+    stats = get_dashboard_stats(user["user_id"])
+    return stats
+
+
+@app.get("/api/dashboard/last-segment")
+async def dashboard_last_segment(user: dict = Depends(get_current_user)):
+    data = get_last_viewed_segment_stats(user["user_id"])
+    return {"segment": data}
+
+
+@app.get("/api/segments/stats")
+async def segments_stats(user: dict = Depends(get_current_user)):
+    data = get_segment_stats(user["user_id"])
+    return {"segments": data}
+
+
+@app.get("/api/leaderboard")
+async def leaderboard(days: int = Query(1, ge=1)):
+    data = get_leaderboard(days=days)
+    return {"leaderboard": data}
+
+
+@app.get("/api/notices")
+async def notices():
+    data = get_latest_notices(limit=5)
+    return {"notices": data}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Courses / Segments / Modules / Videos
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/segments")
+async def list_segments(user: dict = Depends(get_current_user)):
+    data = get_all_segments(user["user_id"])
+    return {"segments": data}
+
+
+@app.get("/api/segments/{segment_id}/videos")
+async def segment_videos(segment_id: int, user: dict = Depends(get_current_user)):
+    videos = get_videos_by_segment(segment_id, user["user_id"])
+    # Attach progress for each video
+    for v in videos:
+        prog = get_video_progress(user["user_id"], v["id"])
+        v["progress"] = prog
+    return {"videos": videos}
+
+
+@app.get("/api/segments/{segment_id}/modules")
+async def segment_modules(segment_id: int, user: dict = Depends(get_current_user)):
+    modules = get_modules_by_segment(segment_id, user["user_id"])
+    return {"modules": modules}
+
+
+@app.get("/api/segments/{segment_id}/leaderboard")
+async def segment_leaderboard_endpoint(segment_id: int, days: int = Query(7, ge=1)):
+    data = get_segment_leaderboard(segment_id, days=days)
+    return {"leaderboard": data}
+
+
+@app.get("/api/modules/{module_id}/videos")
+async def module_videos(module_id: int, user: dict = Depends(get_current_user)):
+    videos = get_videos_by_module(module_id, user["user_id"])
+    for v in videos:
+        prog = get_video_progress(user["user_id"], v["id"])
+        v["progress"] = prog
+    return {"videos": videos}
+
+
+@app.get("/api/videos/{video_id}")
+async def single_video(video_id: int, user: dict = Depends(get_current_user)):
+    video = get_video_by_id(video_id)
+    if not video:
+        raise HTTPException(404, "Video not found")
+    video["progress"] = get_video_progress(user["user_id"], video_id)
+    return video
+
+
+@app.get("/api/videos")
+async def list_videos():
+    videos = get_all_videos()
+    return {"videos": videos}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Subscriptions
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/subscriptions")
+async def get_subs(user: dict = Depends(get_current_user)):
+    ids = get_user_subscriptions(user["user_id"])
+    return {"subscribed_ids": ids}
+
+
+@app.post("/api/subscriptions/{segment_id}")
+async def subscribe(segment_id: int, user: dict = Depends(get_current_user)):
+    subscribe_to_segment(user["user_id"], segment_id)
+    return {"status": "subscribed"}
+
+
+@app.delete("/api/subscriptions/{segment_id}")
+async def unsubscribe(segment_id: int, user: dict = Depends(get_current_user)):
+    unsubscribe_from_segment(user["user_id"], segment_id)
+    return {"status": "unsubscribed"}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Messaging
+# ═══════════════════════════════════════════════════════════
+
+class MessageRequest(BaseModel):
+    content: str
+    recipient_id: int = 0  # 0 = group chat
+
+
+@app.get("/api/messages/group")
+async def group_messages(limit: int = Query(50, ge=1)):
+    data = get_group_messages(limit=limit)
+    return {"messages": data}
+
+
+@app.post("/api/messages/group")
+async def send_group_message(req: MessageRequest, user: dict = Depends(get_current_user)):
+    send_message(user["user_id"], 0, req.content)
+    return {"status": "sent"}
+
+
+@app.get("/api/messages/inbox")
+async def inbox(user: dict = Depends(get_current_user)):
+    data = get_messages_for_user(user["user_id"])
+    return {"messages": data}
+
+
+@app.get("/api/messages/unread")
+async def unread(user: dict = Depends(get_current_user)):
+    data = get_unread_messages(user["user_id"])
+    return {"messages": data}
+
+
+@app.post("/api/messages/dm")
+async def send_dm(req: MessageRequest, user: dict = Depends(get_current_user)):
+    if req.recipient_id == 0:
+        raise HTTPException(400, "Must specify a recipient_id for DMs")
+    send_message(user["user_id"], req.recipient_id, req.content)
+    return {"status": "sent"}
+
+
+class BroadcastRequest(BaseModel):
+    content: str
+
+
+@app.post("/api/messages/broadcast")
+async def broadcast(req: BroadcastRequest, user: dict = Depends(get_current_admin)):
+    """Send a message to all users."""
+    all_users = get_all_users()
+    for u in all_users:
+        if u["id"] != user["user_id"]:
+            send_message(user["user_id"], u["id"], req.content)
+    return {"status": "broadcast_sent", "count": len(all_users) - 1}
+
+
+class ReadRequest(BaseModel):
+    message_ids: List[int]
+
+
+@app.post("/api/messages/read")
+async def mark_read(req: ReadRequest, user: dict = Depends(get_current_user)):
+    mark_messages_read(req.message_ids)
+    return {"status": "ok"}
+
+
+@app.delete("/api/messages")
+async def clear_messages(user: dict = Depends(get_current_admin)):
+    delete_all_messages()
+    return {"status": "deleted"}
+
+
+# ═══════════════════════════════════════════════════════════
+#  Users / Online
+# ═══════════════════════════════════════════════════════════
+
+@app.post("/api/users/ping")
+async def user_ping(user: dict = Depends(get_current_user)):
+    ping_user(user["user_id"])
+    return {"status": "ok"}
+
+
+@app.get("/api/users/online")
+async def online_users():
+    data = get_online_users(minutes=5)
+    return {"users": data}
+
+
+@app.get("/api/users")
+async def list_users(user: dict = Depends(get_current_user)):
+    """Get all users (for DM recipient list)."""
+    data = get_all_users()
+    return {"users": data}
+
+
+@app.get("/api/users/me")
+async def current_user_info(user: dict = Depends(get_current_user)):
+    full_user = get_user_by_id(user["user_id"])
+    if not full_user:
+        raise HTTPException(404, "User not found")
+    return {
+        "id": full_user["id"],
+        "username": full_user["username"],
+        "display_name": full_user["display_name"],
+        "is_admin": bool(full_user.get("is_admin", 0)),
+        "created_at": full_user.get("created_at"),
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+#  Admin endpoints
+# ═══════════════════════════════════════════════════════════
+
+# -- Users admin --
+@app.get("/api/admin/users")
+async def admin_list_users(user: dict = Depends(get_current_admin)):
+    data = get_all_users_admin()
+    return {"users": data}
+
+
+class UserUpdate(BaseModel):
+    username: str
+    display_name: str
+    is_admin: bool = False
+
+
+@app.put("/api/admin/users/{user_id}")
+async def admin_update_user(user_id: int, req: UserUpdate, user: dict = Depends(get_current_admin)):
+    update_user_admin(user_id, req.username, req.display_name, req.is_admin)
+    return {"status": "updated"}
+
+
+@app.delete("/api/admin/users/{user_id}")
+async def admin_delete_user(user_id: int, user: dict = Depends(get_current_admin)):
+    delete_user_admin(user_id)
+    return {"status": "deleted"}
+
+
+# -- Segments admin --
+class SegmentUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_restricted: Optional[bool] = None
+
+
+@app.put("/api/admin/segments/{segment_id}")
+async def admin_update_segment(segment_id: int, req: SegmentUpdate, user: dict = Depends(get_current_admin)):
+    update_segment(segment_id, name=req.name, icon=req.icon, description=req.description,
+                   sort_order=req.sort_order, is_restricted=req.is_restricted)
+    return {"status": "updated"}
+
+
+class SegmentCreate(BaseModel):
+    name: str
+    icon: str = "📁"
+    description: str = ""
+
+
+@app.post("/api/admin/segments")
+async def admin_create_segment(req: SegmentCreate, user: dict = Depends(get_current_admin)):
+    seg_id = get_or_create_segment(req.name, req.icon, req.description)
+    return {"status": "created", "id": seg_id}
+
+
+# -- Modules admin --
+class ModuleUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_restricted: Optional[bool] = None
+
+
+@app.put("/api/admin/modules/{module_id}")
+async def admin_update_module(module_id: int, req: ModuleUpdate, user: dict = Depends(get_current_admin)):
+    update_module(module_id, name=req.name, icon=req.icon, sort_order=req.sort_order,
+                  is_restricted=req.is_restricted)
+    return {"status": "updated"}
+
+
+class ModuleCreate(BaseModel):
+    name: str
+    segment_id: int
+    icon: str = "📂"
+
+
+@app.post("/api/admin/modules")
+async def admin_create_module(req: ModuleCreate, user: dict = Depends(get_current_admin)):
+    mod_id = get_or_create_module(req.name, req.segment_id, req.icon)
+    return {"status": "created", "id": mod_id}
+
+
+@app.delete("/api/admin/modules/{module_id}")
+async def admin_delete_module(module_id: int, user: dict = Depends(get_current_admin)):
+    delete_module(module_id)
+    return {"status": "deleted"}
+
+
+# -- Videos admin --
+class VideoAssign(BaseModel):
+    video_ids: List[int]
+    module_id: int
+
+
+@app.post("/api/admin/videos/assign")
+async def admin_assign_videos(req: VideoAssign, user: dict = Depends(get_current_admin)):
+    move_videos_to_module(req.video_ids, req.module_id)
+    return {"status": "assigned"}
+
+
+class VideoUnassign(BaseModel):
+    video_ids: List[int]
+
+
+@app.post("/api/admin/videos/unassign")
+async def admin_unassign_videos(req: VideoUnassign, user: dict = Depends(get_current_admin)):
+    unassign_videos_from_module(req.video_ids)
+    return {"status": "unassigned"}
+
+
+class VideoRestrict(BaseModel):
+    is_restricted: bool
+
+
+@app.put("/api/admin/videos/{video_id}/restricted")
+async def admin_restrict_video(video_id: int, req: VideoRestrict, user: dict = Depends(get_current_admin)):
+    update_video_restricted(video_id, req.is_restricted)
+    return {"status": "updated"}
+
+
+# -- Notices admin --
+class NoticeCreate(BaseModel):
+    content: str
+
+
+@app.post("/api/admin/notices")
+async def admin_create_notice(req: NoticeCreate, user: dict = Depends(get_current_admin)):
+    add_notice(req.content)
+    return {"status": "created"}
+
+
+@app.get("/api/admin/notices")
+async def admin_list_notices(user: dict = Depends(get_current_admin)):
+    data = get_all_notices()
+    return {"notices": data}
+
+
+@app.delete("/api/admin/notices/{notice_id}")
+async def admin_delete_notice(notice_id: int, user: dict = Depends(get_current_admin)):
+    delete_notice(notice_id)
+    return {"status": "deleted"}
+
+
+# -- Access control admin --
+@app.get("/api/admin/access/segments/{segment_id}")
+async def admin_get_segment_access(segment_id: int, user: dict = Depends(get_current_admin)):
+    ids = get_user_segment_access(segment_id)
+    return {"user_ids": ids}
+
+
+class AccessUpdate(BaseModel):
+    user_ids: List[int]
+
+
+@app.put("/api/admin/access/segments/{segment_id}")
+async def admin_set_segment_access(segment_id: int, req: AccessUpdate, user: dict = Depends(get_current_admin)):
+    set_user_segment_access(segment_id, req.user_ids)
+    return {"status": "updated"}
+
+
+@app.get("/api/admin/access/modules/{module_id}")
+async def admin_get_module_access(module_id: int, user: dict = Depends(get_current_admin)):
+    ids = get_user_module_access(module_id)
+    return {"user_ids": ids}
+
+
+@app.put("/api/admin/access/modules/{module_id}")
+async def admin_set_module_access(module_id: int, req: AccessUpdate, user: dict = Depends(get_current_admin)):
+    set_user_module_access(module_id, req.user_ids)
+    return {"status": "updated"}
+
+
+@app.get("/api/admin/access/videos/{video_id}")
+async def admin_get_video_access(video_id: int, user: dict = Depends(get_current_admin)):
+    ids = get_user_video_access(video_id)
+    return {"user_ids": ids}
+
+
+@app.put("/api/admin/access/videos/{video_id}")
+async def admin_set_video_access(video_id: int, req: AccessUpdate, user: dict = Depends(get_current_admin)):
+    set_user_video_access(video_id, req.user_ids)
+    return {"status": "updated"}
+
+
+# -- Backup & fix --
+@app.post("/api/admin/backup")
+async def admin_backup(user: dict = Depends(get_current_admin)):
+    from backend.github_backup import force_backup
+    try:
+        success, msg = await force_backup()
+        return {"success": success, "message": msg}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@app.post("/api/admin/fix-youtube")
+async def admin_fix_youtube(user: dict = Depends(get_current_admin)):
+    count = recover_missing_youtube_ids()
+    return {"status": "ok", "recovered": count}
+
+
+# ═══════════════════════════════════════════════════════════
+#  YouTube Import
+# ═══════════════════════════════════════════════════════════
+
+class YouTubeImportRequest(BaseModel):
+    url: str
+    icon: str = "▶️"
+    description: str = ""
+
+
+@app.post("/api/import/youtube")
+async def import_youtube(req: YouTubeImportRequest, user: dict = Depends(get_current_user)):
+    from backend.youtube import process_youtube_playlist
+    try:
+        seg_id = process_youtube_playlist(req.url, req.icon, req.description, user_id=user["user_id"])
+        return {"status": "ok", "segment_id": seg_id}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+# ═══════════════════════════════════════════════════════════
+#  Analytics
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/analytics/daily")
+async def analytics_daily(days: int = Query(30, ge=1), user: dict = Depends(get_current_user)):
+    data = get_daily_watch_activity(user["user_id"], days)
+    return {"activity": data}
+
+
+@app.get("/api/analytics/segments")
+async def analytics_segments(user: dict = Depends(get_current_user)):
+    data = get_segment_stats(user["user_id"])
+    return {"segments": data}
+
+
+@app.get("/api/analytics/modules")
+async def analytics_modules(user: dict = Depends(get_current_user)):
+    data = get_module_stats(user["user_id"])
+    return {"modules": data}
+
+
+# ═══════════════════════════════════════════════════════════
+#  AI Chat Proxy (g4f)
+# ═══════════════════════════════════════════════════════════
+
+class AIChatRequest(BaseModel):
+    messages: list  # [{role: "user"/"assistant"/"system", content: str}]
+    video_title: str = ""
+
+
+@app.post("/api/ai/chat")
+async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
+    try:
+        from g4f.client import Client
+        client = Client()
+        
+        system_msg = {
+            "role": "system",
+            "content": f"You are a helpful AI tutor. The student is watching a video lecture titled '{req.video_title}'. Help answer their questions, explain in simple and intuitive manner through first principles. Always reply in English."
+        }
+        messages = [system_msg] + req.messages[-5:]
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+        )
+        answer = response.choices[0].message.content
+        return {"response": answer}
+    except ImportError:
+        raise HTTPException(501, "AI chat is not available (g4f not installed)")
+    except Exception as e:
+        raise HTTPException(500, f"AI chat failed: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════════
+#  Sync & restore
 # ═══════════════════════════════════════════════════════════
 
 @app.post("/api/sync")
@@ -324,11 +913,6 @@ async def api_force_restore():
     from backend.github_backup import restore_from_github
     success, msg = await restore_from_github()
     return {"success": success, "msg": msg}
-
-@app.get("/api/videos")
-async def list_videos():
-    videos = get_all_videos()
-    return {"videos": videos}
 
 
 # ═══════════════════════════════════════════════════════════

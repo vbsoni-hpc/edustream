@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS segments (
     icon       TEXT    NOT NULL DEFAULT '📁',
     description TEXT   NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
-    is_restricted INTEGER NOT NULL DEFAULT 0
+    is_restricted INTEGER NOT NULL DEFAULT 0,
+    uploaded_by INTEGER REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS modules (
@@ -327,29 +328,31 @@ def delete_notice(notice_id: int):
 def get_all_segments(user_id: int = None) -> list[dict]:
     with _conn() as c:
         if user_id is None:
-            rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
+            rows = c.execute("SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name").fetchall()
         else:
             user_row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
             is_admin = bool(user_row["is_admin"]) if user_row else False
             if is_admin:
-                rows = c.execute("SELECT * FROM segments ORDER BY sort_order, name").fetchall()
+                rows = c.execute("SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name FROM segments s LEFT JOIN users u ON s.uploaded_by = u.id ORDER BY s.sort_order, s.name").fetchall()
             else:
                 rows = c.execute("""
-                    SELECT * FROM segments 
-                    WHERE is_restricted = 0 
-                    OR id IN (SELECT segment_id FROM user_segment_access WHERE user_id = ?)
-                    ORDER BY sort_order, name
+                    SELECT s.*, u.username as uploaded_by_username, u.display_name as uploaded_by_display_name 
+                    FROM segments s 
+                    LEFT JOIN users u ON s.uploaded_by = u.id
+                    WHERE s.is_restricted = 0 
+                    OR s.id IN (SELECT segment_id FROM user_segment_access WHERE user_id = ?)
+                    ORDER BY s.sort_order, s.name
                 """, (user_id,)).fetchall()
         return [dict(r) for r in rows]
 
 
-def get_or_create_segment(name: str, icon: str = "📁", description: str = "") -> int:
+def get_or_create_segment(name: str, icon: str = "📁", description: str = "", uploaded_by: int = None) -> int:
     with _conn() as c:
         row = c.execute("SELECT id FROM segments WHERE name = ?", (name,)).fetchone()
         if row:
             return row["id"]
         cur = c.execute(
-            "INSERT INTO segments (name, icon, description) VALUES (?, ?, ?)", (name, icon, description)
+            "INSERT INTO segments (name, icon, description, uploaded_by) VALUES (?, ?, ?, ?)", (name, icon, description, uploaded_by)
         )
         c.commit()
         _trigger_backup()
@@ -700,7 +703,7 @@ def update_video_restricted(video_id: int, is_restricted: bool):
 def is_user_admin(user_id: int) -> bool:
     with _conn() as c:
         row = c.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,)).fetchone()
-        return bool(row["is_admin"]) if row else False
+        return bool(row["is_admin"]) if user_id else False
 
 def get_user_subscriptions(user_id: int) -> list[int]:
     with _conn() as c:
