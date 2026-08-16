@@ -10,6 +10,7 @@ import Draggable from 'react-draggable';
 export function FloatingChat() {
   const { token, user } = useAuth();
   const [unreadGlobal, setUnreadGlobal] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const lastIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function FloatingChat() {
         const msgs = res.messages.reverse();
         if (msgs.length > 0) {
           const latestId = msgs[msgs.length - 1].id;
-          if (lastIdRef.current !== null && latestId > lastIdRef.current) {
+          if (lastIdRef.current !== null && latestId > lastIdRef.current && isCollapsed) {
             setUnreadGlobal(true);
           }
           lastIdRef.current = latestId;
@@ -29,19 +30,33 @@ export function FloatingChat() {
     };
     const interval = setInterval(checkUnread, 10000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, isCollapsed]);
 
   if (!token || !user) return null;
 
   return (
     <Draggable handle=".floating-chat-header">
-      <div className="floating-chat-widget" style={{ bottom: 24, right: 24, height: 400 }}>
-        <div className="floating-chat-header" style={{ cursor: 'move' }}>
-          EduStream Hangout
+      <div className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
+        <div className="floating-chat-header" style={{ cursor: 'move', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>EduStream Hangout</span>
+            {isCollapsed && unreadGlobal && (
+              <span style={{ width: 10, height: 10, background: 'var(--danger)', borderRadius: '50%' }} title="New messages" />
+            )}
+          </div>
+          <button 
+            onClick={() => { setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
+            style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}
+            title={isCollapsed ? "Expand" : "Collapse"}
+          >
+            {isCollapsed ? '+' : '−'}
+          </button>
         </div>
-        <div className="floating-chat-body">
-          <GlobalChat token={token} user={user} />
-        </div>
+        {!isCollapsed && (
+          <div className="floating-chat-body">
+            <GlobalChat token={token} user={user} />
+          </div>
+        )}
       </div>
     </Draggable>
   );
