@@ -110,12 +110,29 @@ export default function Sidebar() {
       </nav>
 
 
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, marginTop: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              {unreadCount > 0 && <span style={{ background: 'var(--danger)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 'bold' }}>{unreadCount} New</span>}
           </div>
           <MessagingSidebar />
+        </div>
+      ) : (
+        <div style={{ padding: '0 16px', flex: 1, marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+          <button 
+            onClick={() => setIsCollapsed(false)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem', position: 'relative' }}
+            title="Open Inbox"
+          >
+            📥
+            {unreadCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4, width: 10, height: 10,
+                background: 'var(--danger)', borderRadius: '50%',
+                border: '2px solid var(--bg-card)'
+              }} />
+            )}
+          </button>
         </div>
       )}
 

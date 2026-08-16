@@ -105,8 +105,15 @@ function PlayerContent() {
         <div className="form-success" style={{ marginBottom: 16 }}>✅ You&#39;ve completed this video!</div>
       )}
 
-      {/* Video Player Mount Point */}
-      <div id="player-mount" style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}></div>
+      {/* Floating Player Indicator */}
+      <div style={{ 
+        minHeight: '30vh', marginBottom: 24, borderRadius: 16, 
+        background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12
+      }}>
+        <div style={{ fontSize: 40 }}>🎥</div>
+        <div style={{ color: 'var(--text-secondary)' }}>Video is playing in the floating player</div>
+      </div>
 {/* Watching Now */}
       <WatchingNow videoId={video.id} token={token!} />
 

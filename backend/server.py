@@ -1084,3 +1084,9 @@ async def route_delete_video(video_id: int, user: dict = Depends(get_current_use
     from backend.models import delete_video
     delete_video(video_id)
     return {"success": True}
+
+
+@app.head("/")
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
