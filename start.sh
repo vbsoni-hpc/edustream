@@ -10,10 +10,12 @@ echo "Starting FastAPI backend..."
 uvicorn backend.server:app --host 127.0.0.1 --port 8000 &
 FASTAPI_PID=$!
 
-# Start Streamlit frontend in the background
-echo "Starting Streamlit frontend..."
-streamlit run Dashboard.py --server.port 8501 --server.address 127.0.0.1 --server.headless true --server.enableCORS false --server.enableXsrfProtection false --server.fileWatcherType none &
-STREAMLIT_PID=$!
+# Start Next.js frontend in the background
+echo "Starting Next.js frontend..."
+cd frontend
+npm start &
+NEXTJS_PID=$!
+cd ..
 
 # Replace the port in nginx.conf
 export PORT=${PORT:-10000}
