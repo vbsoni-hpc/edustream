@@ -829,10 +829,10 @@ async def admin_set_video_access(video_id: int, req: AccessUpdate, user: dict = 
 # -- Backup & fix --
 @app.post("/api/admin/backup")
 async def admin_backup(user: dict = Depends(get_current_admin)):
-    from backend.github_backup import force_backup
+    from backend.github_backup import force_backup_sync
     try:
-        success, msg = await force_backup()
-        return {"success": success, "message": msg}
+        force_backup_sync()
+        return {"success": True, "message": "Backup successful"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
