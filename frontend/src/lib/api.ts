@@ -219,13 +219,19 @@ export const aiApi = {
     }),
 };
 
-// ── YouTube Import ────────────────────────────────────────
+// ── Import API ────────────────────────────────────────
 export const importApi = {
   youtube: (token: string, url: string, icon = '▶️', description = '') =>
     request<{ status: string; segment_id: number }>('/api/import/youtube', {
       method: 'POST',
       token,
       body: JSON.stringify({ url, icon, description }),
+    }),
+  telegram: (token: string, channel: string, name = '', icon = '📱', description = '') =>
+    request<{ status: string; segment_id: number }>('/api/import/telegram', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ channel, name, icon, description }),
     }),
 };
 

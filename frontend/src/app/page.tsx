@@ -290,18 +290,27 @@ function LeaderboardCard({ title, data }: { title: string; data: any[] }) {
 /* ── Import Modal ────────────────────────────────────────── */
 function ImportModal({ onClose }: { onClose: () => void }) {
   const { token } = useAuth();
+  const [source, setSource] = useState<'youtube' | 'telegram'>('youtube');
   const [url, setUrl] = useState('');
+  const [channel, setChannel] = useState('');
+  const [name, setName] = useState('');
   const [icon, setIcon] = useState('▶️');
   const [desc, setDesc] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleImport = async () => {
-    if (!url || !token) return;
+    if (!token) return;
     setLoading(true);
     setError('');
     try {
-      await importApi.youtube(token, url, icon, desc);
+      if (source === 'youtube') {
+        if (!url) throw new Error('URL is required');
+        await importApi.youtube(token, url, icon, desc);
+      } else {
+        if (!channel) throw new Error('Channel username is required');
+        await importApi.telegram(token, channel, name, icon, desc);
+      }
       onClose();
     } catch (err: any) {
       setError(err.message || 'Import failed');
@@ -314,13 +323,40 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3 className="modal-title">Upload a Course</h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>
-          Import a course using a YouTube Playlist URL.
-        </p>
-        <div className="form-group">
-          <label className="label">YouTube Playlist URL</label>
-          <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/playlist?..." />
+        
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          <button 
+            className={`btn btn-sm ${source === 'youtube' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => { setSource('youtube'); setIcon('▶️'); }}
+          >
+            YouTube Playlist
+          </button>
+          <button 
+            className={`btn btn-sm ${source === 'telegram' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => { setSource('telegram'); setIcon('📱'); }}
+          >
+            Telegram Channel
+          </button>
         </div>
+
+        {source === 'youtube' ? (
+          <div className="form-group">
+            <label className="label">YouTube Playlist URL</label>
+            <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/playlist?..." />
+          </div>
+        ) : (
+          <>
+            <div className="form-group">
+              <label className="label">Telegram Channel Username</label>
+              <input className="input" value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="@course_channel" />
+            </div>
+            <div className="form-group">
+              <label className="label">Course Name (Optional)</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Advanced Mathematics" />
+            </div>
+          </>
+        )}
+
         <div className="form-group">
           <label className="label">Segment Icon (emoji)</label>
           <input className="input" value={icon} onChange={(e) => setIcon(e.target.value)} />

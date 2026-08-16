@@ -859,6 +859,55 @@ async def import_youtube(req: YouTubeImportRequest, user: dict = Depends(get_cur
 # ═══════════════════════════════════════════════════════════
 
 @app.get("/api/analytics/daily")
+
+class TelegramImportRequest(BaseModel):
+    channel: str
+    name: str = ""
+    icon: str = "📱"
+    description: str = ""
+
+@app.post("/api/import/telegram")
+async def import_telegram(req: TelegramImportRequest, user: dict = Depends(get_current_user)):
+    from backend.telegram_client import sync_channel
+    from backend.models import get_or_create_segment, upsert_video
+    try:
+        # channel could be a URL like https://t.me/some_channel, let's extract the username
+        channel_name = req.channel
+        if 't.me/' in channel_name:
+            channel_name = channel_name.split('t.me/')[-1].split('/')[0]
+        if not channel_name.startswith('@') and not channel_name.startswith('-100'):
+            # It might be a public username without @
+            if not channel_name.isdigit():
+                channel_name = '@' + channel_name
+                
+        videos = await sync_channel(channel_name)
+        if not videos:
+            raise ValueError("No videos found in the specified channel.")
+            
+        segment_name = req.name or channel_name
+        segment_id = get_or_create_segment(
+            name=segment_name,
+            icon=req.icon,
+            description=req.description or f"Telegram Channel: {channel_name}",
+            uploaded_by=user['user_id']
+        )
+        
+        for v in videos:
+            upsert_video(
+                telegram_msg_id=v["telegram_msg_id"],
+                title=v["title"],
+                segment_id=segment_id,
+                duration_sec=v["duration_sec"],
+                file_size=v["file_size"],
+                mime_type=v["mime_type"],
+                caption=v["caption"],
+            )
+        
+        return {"status": "ok", "segment_id": segment_id, "videos_imported": len(videos)}
+    except Exception as e:
+        logger.error(f"Telegram import failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def analytics_daily(days: int = Query(30, ge=1), user: dict = Depends(get_current_user)):
     data = get_daily_watch_activity(user["user_id"], days)
     return {"activity": data}
