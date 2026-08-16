@@ -11,9 +11,9 @@ uvicorn backend.server:app --host 127.0.0.1 --port 8000 &
 FASTAPI_PID=$!
 
 # Start Next.js frontend in the background
-echo "Starting Next.js frontend..."
+echo "Starting Next.js frontend on port 3000..."
 cd frontend
-npm start &
+PORT=3000 npm start &
 NEXTJS_PID=$!
 cd ..
 
