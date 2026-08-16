@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { adminApi, coursesApi, importApi } from '@/lib/api';
+import { adminApi, coursesApi, importApi, analyticsApi } from '@/lib/api';
 import { formatDate, timeAgo } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
