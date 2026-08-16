@@ -16,41 +16,6 @@ export default function GlobalPlayer() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!videoId || !token) {
-      setVideo(null);
-      return;
-    }
-    coursesApi.getVideo(token, videoId).then(setVideo).catch(console.error);
-  }, [videoId, token]);
-
-  if (!video) return null;
-
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const lastPosition = video.progress?.last_position || 0;
-  const isYoutube = !!video.youtube_id;
-  const isBrokenYoutube = video.mime_type === 'video/youtube' && !video.youtube_id;
-
-  // If we are on /player and isPiP is false, we don't render the global floating player,
-  // we render it inline! Wait, to render it inline on /player, we can just use CSS classes.
-  // Actually, if we are on /player, the player page will just render an empty div of height 500px, 
-  // and this GlobalPlayer will use position: absolute or fixed based on PiP state.
-
-
-  const containerStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: 24,
-    right: 24,
-    width: 350,
-    zIndex: 9999,
-    borderRadius: 12,
-    overflow: 'hidden',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-    background: '#0E1117',
-    border: '1px solid rgba(255,255,255,0.1)',
-    transition: 'all 0.3s ease',
-  };
-
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
 
   // Auto-PiP when navigating away from /player
@@ -81,7 +46,41 @@ export default function GlobalPlayer() {
     }
   }, [isPiP, pathname]);
 
+  useEffect(() => {
+    if (!videoId || !token) {
+      setVideo(null);
+      return;
+    }
+    coursesApi.getVideo(token, videoId).then(setVideo).catch(console.error);
+  }, [videoId, token]);
+
+  if (!video) return null;
   if (!mounted) return null;
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const lastPosition = video.progress?.last_position || 0;
+  const isYoutube = !!video.youtube_id;
+  const isBrokenYoutube = video.mime_type === 'video/youtube' && !video.youtube_id;
+
+  // If we are on /player and isPiP is false, we don't render the global floating player,
+  // we render it inline! Wait, to render it inline on /player, we can just use CSS classes.
+  // Actually, if we are on /player, the player page will just render an empty div of height 500px, 
+  // and this GlobalPlayer will use position: absolute or fixed based on PiP state.
+
+
+  const containerStyle: React.CSSProperties = {
+    position: 'fixed',
+    bottom: 24,
+    right: 24,
+    width: 350,
+    zIndex: 9999,
+    borderRadius: 12,
+    overflow: 'hidden',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+    background: '#0E1117',
+    border: '1px solid rgba(255,255,255,0.1)',
+    transition: 'all 0.3s ease',
+  };
 
   const content = (
     <div style={isPiP ? containerStyle : { width: '100%' }}>
