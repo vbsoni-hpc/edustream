@@ -941,7 +941,7 @@ class AIChatRequest(BaseModel):
 @app.post("/api/ai/chat")
 async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
     try:
-        import httpx
+        import aiohttp
         
         system_msg = {
             "role": "system",
@@ -949,8 +949,8 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         }
         messages = [system_msg] + req.messages[-5:]
         
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
                 "https://text.pollinations.ai/openai",
                 json={
                     "model": "openai",
@@ -958,13 +958,13 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
                     "seed": 42
                 },
                 timeout=30.0
-            )
-            
-            if resp.status_code != 200:
-                raise Exception(f"API Error {resp.status_code}: {resp.text}")
-                
-            data = resp.json()
-            answer = data["choices"][0]["message"]["content"]
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise Exception(f"API Error {resp.status}: {text}")
+                    
+                data = await resp.json()
+                answer = data["choices"][0]["message"]["content"]
             
         return {"response": answer}
     except Exception as e:
