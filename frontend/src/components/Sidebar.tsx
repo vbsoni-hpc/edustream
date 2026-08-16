@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useEffect, useState } from 'react';
-import { usersApi } from '@/lib/api';
+import { usersApi, messagingApi } from '@/lib/api';
 import { MessagingSection } from '@/components/MessagingSidebar';
 
 const navItems = [
@@ -22,6 +22,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Load initial collapsed state
   useEffect(() => {
@@ -41,12 +42,15 @@ export default function Sidebar() {
     }
   }, [isCollapsed]);
 
-  // Heartbeat ping
+  // Heartbeat ping and Unread Check
   useEffect(() => {
     if (!user?.token) return;
-    const ping = () => usersApi.ping(user.token).catch(() => {});
+    const ping = () => {
+      usersApi.ping(user.token).catch(() => {});
+      messagingApi.getUnread(user.token).then(res => setUnreadCount(res.messages?.length || 0)).catch(() => {});
+    };
     ping();
-    const interval = setInterval(ping, 60000);
+    const interval = setInterval(ping, 15000);
     return () => clearInterval(interval);
   }, [user?.token]);
 
@@ -103,13 +107,30 @@ export default function Sidebar() {
         {isCollapsed ? (
           <div 
             onClick={() => setIsCollapsed(false)}
-            style={{ fontSize: 20, textAlign: 'center', marginTop: 16, cursor: 'pointer' }}
-            title="Messaging"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', marginTop: 16, cursor: 'pointer', position: 'relative' }}
+            title="Messaging & Inbox"
           >
-            💬
+            <div style={{ position: 'relative' }}>
+              <span style={{ fontSize: 20 }}>💬</span>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <span style={{ fontSize: 20 }}>📥</span>
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -2, right: -4, background: 'var(--danger)', color: 'white',
+                  fontSize: 9, fontWeight: 'bold', width: 14, height: 14, display: 'flex', 
+                  alignItems: 'center', justifyContent: 'center', borderRadius: '50%'
+                }}>
+                  {unreadCount}
+                </span>
+              )}
+            </div>
           </div>
         ) : (
-          <div className="messaging-section">
+          <div className="messaging-section" style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {/* Unread indicator inside the expanded section can be handled in MessagingSidebar but we can show it here too if we want */}
+            </div>
             <MessagingSection />
           </div>
         )}

@@ -7,7 +7,7 @@ import { timeAgo } from '@/lib/utils';
 
 export function MessagingSection() {
   const { token } = useAuth();
-  const [openSection, setOpenSection] = useState<'hangout' | 'inbox' | 'dm' | null>('hangout');
+  const [openSection, setOpenSection] = useState<'hangout' | 'inbox' | 'dm' | null>(null);
   
   if (!token) return null;
 
