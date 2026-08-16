@@ -249,7 +249,7 @@ def _export_user_passwords() -> dict:
     return {r["username"]: r["password_hash"] for r in rows}
 
 
-async def export_to_github():
+def export_to_github():
     """Export current DB state to GitHub as a JSON file."""
     if not GITHUB_TOKEN or not GITHUB_REPO:
         logger.error("GITHUB_BACKUP_TOKEN or GITHUB_BACKUP_REPO not set.")
@@ -661,13 +661,10 @@ def schedule_backup():
 
 
 def _run_backup():
-    """Run the async backup in a new event loop (called from timer thread)."""
+    """Run the backup (called from timer thread)."""
     global _debounce_timer
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(export_to_github())
-        loop.close()
+        export_to_github()
     except Exception as e:
         logger.error(f"Background backup failed: {e}")
     finally:
@@ -687,10 +684,7 @@ def force_backup_sync():
             _debounce_timer = None
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(export_to_github())
-        loop.close()
+        export_to_github()
     except Exception as e:
         logger.error(f"Force backup failed: {e}")
         raise

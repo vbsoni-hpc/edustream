@@ -159,6 +159,15 @@ async def lifespan(app: FastAPI):
     await async_init_db()
     logger.info("Database initialised")
     
+    # Restore from GitHub backup
+    from backend.github_backup import restore_from_github
+    logger.info("Attempting to restore from GitHub backup...")
+    success, msg = await restore_from_github()
+    if success:
+        logger.info(f"GitHub Restore Success: {msg}")
+    else:
+        logger.warning(f"GitHub Restore Skipped/Failed: {msg}")
+    
     # Start auto-sync background task
     sync_task = asyncio.create_task(auto_sync_task())
     
