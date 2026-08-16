@@ -188,7 +188,7 @@ a {
 
 .three-column-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-columns: 240px minmax(0, 1fr) 240px;
   gap: 20px;
   align-items: start;
   justify-content: center;
