@@ -77,28 +77,28 @@ export default function GlobalPlayer() {
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>{video.title}</span>
               <div className="nodrag" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button 
-                onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
+                onPointerDown={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}
                 style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title={isCollapsed ? "Expand Video" : "Collapse Video"}
               >
                 {isCollapsed ? 
-                  <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> : 
-                  <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4"/></svg>
+                  <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> : 
+                  <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4"/></svg>
                 }
               </button>
               <button 
-                onClick={(e) => { e.stopPropagation(); setIsPiP(false); window.location.href='/player'; }} 
+                onPointerDown={(e) => { e.stopPropagation(); setIsPiP(false); window.location.href='/player'; }} 
                 style={{ background: 'transparent', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title="Fullscreen"
               >
-                <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
               </button>
               <button 
-                onClick={(e) => { e.stopPropagation(); setVideoId(0); }} 
+                onPointerDown={(e) => { e.stopPropagation(); setVideoId(0); }} 
                 style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: 0, display: 'flex' }}
                 title="Close"
               >
-                <svg style={{width:16,height:16}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                <svg style={{width:16,height:16,pointerEvents:'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
          </div>
