@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useEffect, useState } from 'react';
 import { usersApi, messagingApi } from '@/lib/api';
+import MessagingSidebar from './MessagingSidebar';
+
 
 const navItems = [
   { href: '/', icon: '🏠', label: 'Dashboard' },
@@ -107,7 +109,18 @@ export default function Sidebar() {
           ))}
       </nav>
 
-      <div className="sidebar-user" style={{ marginTop: 'auto' }}>
+
+      {!isCollapsed && (
+        <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             {unreadCount > 0 && <span style={{ background: 'var(--danger)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 'bold' }}>{unreadCount} New</span>}
+          </div>
+          <MessagingSidebar />
+        </div>
+      )}
+
+      <div className="sidebar-user" style={{ marginTop: isCollapsed ? 'auto' : 16 }}>
+
         <div className="sidebar-user-info">
           <div className="sidebar-avatar">{initial}</div>
           <div>
