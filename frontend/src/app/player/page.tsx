@@ -365,11 +365,16 @@ function WatchingNow({ videoId, token }: { videoId: number; token: string }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {watchers.map((w, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20,
-            fontSize: 13, border: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex', alignItems: 'center', gap: 6
-          }}>
+          <div 
+            key={i} 
+            onClick={() => window.dispatchEvent(new CustomEvent('open-dm', { detail: { id: w.id, name: w.display_name } }))}
+            style={{
+              background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20,
+              fontSize: 13, border: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+            }}
+            title={`DM ${w.display_name}`}
+          >
             <span style={{ fontSize: 16 }}>{w.is_admin ? '👑' : '👤'}</span>
             {w.display_name}
           </div>

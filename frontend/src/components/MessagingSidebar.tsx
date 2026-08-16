@@ -8,6 +8,20 @@ import { timeAgo } from '@/lib/utils';
 export function MessagingSection() {
   const { token } = useAuth();
   const [openSection, setOpenSection] = useState<'hangout' | 'inbox' | 'dm' | null>(null);
+  const [activeDmUser, setActiveDmUser] = useState<{ id: number; name: string } | null>(null);
+
+  useEffect(() => {
+    const handleOpenDm = (e: any) => {
+      if (e.detail?.id && e.detail?.name) {
+        setActiveDmUser({ id: e.detail.id, name: e.detail.name });
+        setOpenSection('dm');
+        // If sidebar is collapsed, this doesn't automatically open it unless Sidebar listens too
+        // We will dispatch a second event for sidebar open if needed, but for now this works when open
+      }
+    };
+    window.addEventListener('open-dm', handleOpenDm);
+    return () => window.removeEventListener('open-dm', handleOpenDm);
+  }, []);
   
   if (!token) return null;
 
@@ -42,11 +56,58 @@ export function MessagingSection() {
           isOpen={openSection === 'dm'} 
           onClick={() => setOpenSection(openSection === 'dm' ? null : 'dm')}
         >
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
-            Click an online user above to send a DM.
-          </div>
+          <DMForm token={token} activeUser={activeDmUser} />
         </Accordion>
       </div>
+    </div>
+  );
+}
+
+function DMForm({ token, activeUser }: { token: string, activeUser: { id: number, name: string } | null }) {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => { setSuccess(false); }, [activeUser]);
+
+  if (!activeUser) {
+    return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Click an online user above to send a DM.</div>;
+  }
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    setLoading(true);
+    try {
+      await messagingApi.sendDM(token, activeUser.id, content);
+      setContent('');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 12, color: 'var(--primary-light)', fontWeight: 600 }}>
+        To: {activeUser.name}
+      </div>
+      {success && <div style={{ fontSize: 11, color: 'var(--success)' }}>Message sent!</div>}
+      <form onSubmit={handleSend} style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+        <textarea 
+          className="input" 
+          value={content} 
+          onChange={e => setContent(e.target.value)} 
+          placeholder="Type your message..." 
+          style={{ fontSize: 12, padding: '6px 8px', minHeight: 60, resize: 'none' }}
+        />
+        <button type="submit" className="btn btn-primary btn-sm" disabled={loading || !content.trim()} style={{ fontSize: 12 }}>
+          Send DM
+        </button>
+      </form>
     </div>
   );
 }
@@ -64,11 +125,9 @@ function Accordion({ title, isOpen, onClick, children }: { title: string, isOpen
       >
         <span>{isOpen ? '⌄' : '›'} {title}</span>
       </div>
-      {isOpen && (
-        <div style={{ padding: 12, background: 'rgba(26,29,41,0.4)' }}>
-          {children}
-        </div>
-      )}
+      <div style={{ padding: 12, background: 'rgba(26,29,41,0.4)', display: isOpen ? 'block' : 'none' }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -79,6 +138,7 @@ function GlobalChat({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [toast, setToast] = useState<{ sender: string, content: string } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<number | null>(null);
 
@@ -118,6 +178,9 @@ function GlobalChat({ token }: { token: string }) {
             gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
             osc.stop(ctx.currentTime + 0.1);
           } catch(e) {}
+          
+          setToast({ sender: newMessages[newMessages.length - 1].sender_name, content: newMessages[newMessages.length - 1].content });
+          setTimeout(() => setToast(null), 4000);
         }
         
         lastMessageIdRef.current = latestId;
@@ -155,6 +218,16 @@ function GlobalChat({ token }: { token: string }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 300 }}>
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, background: 'var(--bg-card)', border: '1px solid var(--primary)',
+          padding: '12px 16px', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9999,
+          maxWidth: 300, animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--primary-light)', fontWeight: 600, marginBottom: 4 }}>💬 {toast.sender} said:</div>
+          <div style={{ fontSize: 13, color: 'white' }}>{toast.content}</div>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button 
           onClick={toggleMute} 
@@ -211,7 +284,11 @@ function OnlineUsers({ token }: { token: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {users.map((u, i) => (
         <div key={u.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981', fontWeight: 600, cursor: 'pointer' }} title={`DM ${u.display_name}`}>
+          <span 
+            onClick={() => window.dispatchEvent(new CustomEvent('open-dm', { detail: { id: u.id, name: u.display_name } }))}
+            style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '2px 8px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981', fontWeight: 600, cursor: 'pointer' }} 
+            title={`DM ${u.display_name}`}
+          >
             <span className="online-dot" style={{ width: 6, height: 6, margin: 0, background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
             {u.display_name}
           </span>

@@ -42,6 +42,13 @@ export default function Sidebar() {
     }
   }, [isCollapsed]);
 
+  // Listen for open-dm event to automatically expand the sidebar
+  useEffect(() => {
+    const handleOpenDm = () => setIsCollapsed(false);
+    window.addEventListener('open-dm', handleOpenDm);
+    return () => window.removeEventListener('open-dm', handleOpenDm);
+  }, []);
+
   // Heartbeat ping and Unread Check
   useEffect(() => {
     if (!user?.token) return;
