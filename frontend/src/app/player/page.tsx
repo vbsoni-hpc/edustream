@@ -248,6 +248,7 @@ function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition, onC
         <video
           ref={videoRef}
           controls
+          controlsList="nodownload"
           preload="metadata"
           style={{ width: '100%', display: 'block', maxHeight: '70vh' }}
         >

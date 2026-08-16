@@ -77,7 +77,7 @@ function GlobalChat({ token }: { token: string }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -105,9 +105,19 @@ function GlobalChat({ token }: { token: string }) {
         
         // Play sound if there's a new message, it's not the initial load, and we're not muted
         if (!isInitialLoad && lastMessageIdRef.current !== null && latestId > lastMessageIdRef.current && !isMuted) {
-          const audio = new Audio('/drop.wav');
-          audio.volume = 0.5;
-          audio.play().catch(() => {}); // catch errors if browser blocks autoplay
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
+            osc.stop(ctx.currentTime + 0.1);
+          } catch(e) {}
         }
         
         lastMessageIdRef.current = latestId;

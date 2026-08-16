@@ -107,7 +107,7 @@ a {
 }
 
 .sidebar.collapsed {
-  width: 70px;
+  width: 56px;
   padding: 24px 8px;
 }
 
@@ -232,8 +232,8 @@ a {
 }
 
 .sidebar.collapsed + .main-content {
-  margin-left: 70px;
-  max-width: calc(100vw - 70px);
+  margin-left: 56px;
+  max-width: calc(100vw - 56px);
 }
 
 /* ── Glass Card ─────────────────────────────────────────── */
