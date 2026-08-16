@@ -53,19 +53,20 @@ export function FloatingChat() {
 
   return (
     <Draggable handle=".floating-chat-header" cancel=".nodrag" nodeRef={nodeRef}>
-      <div ref={nodeRef} className="floating-chat-widget" style={{ bottom: 24, right: 24, height: isCollapsed ? 48 : 400, overflow: 'hidden', transition: 'height 0.3s ease' }}>
+      <div ref={nodeRef} className={`floating-chat-widget ${isCollapsed ? 'collapsed' : ''}`} style={{ bottom: 24, right: 24 }}>
         <div 
           className="floating-chat-header" 
           style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
           onClick={() => { setIsCollapsed(!isCollapsed); setUnreadGlobal(false); }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>EduStream Hangout</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' }} className="chat-header-left">
+            <svg className="chat-icon" style={{width: 20, height: 20}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            <span className="chat-title-text">EduStream Hangout</span>
             {isCollapsed && unreadGlobal && (
-              <span style={{ width: 10, height: 10, background: 'var(--danger)', borderRadius: '50%' }} title="New messages" />
+              <span className="chat-unread-dot" style={{ width: 10, height: 10, background: 'var(--danger)', borderRadius: '50%' }} title="New messages" />
             )}
           </div>
-          <div className="nodrag" style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="nodrag chat-collapse-btn" style={{ display: 'flex', alignItems: 'center' }}>
             <button 
               style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, display: 'flex' }}
               title={isCollapsed ? "Expand" : "Collapse"}

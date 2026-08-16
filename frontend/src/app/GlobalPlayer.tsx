@@ -198,6 +198,7 @@ function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: a
       ref={videoRef}
       controls
       controlsList="nodownload"
+      playsInline
       style={{ width: '100%', display: 'block', maxHeight: '70vh' }}
     >
       <source src={`${apiBase}/api/stream/${videoMsgId}`} type="video/mp4" />
