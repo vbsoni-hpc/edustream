@@ -137,22 +137,7 @@ function Dashboard() {
 
 
 
-          {/* My Shortcuts */}
-          <div>
-            <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>My Shortcuts</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <Link href="/courses" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
-                <span style={{ fontSize: 20 }}>📚</span> Recent Courses
-              </Link>
-              <Link href="/player" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
-                <span style={{ fontSize: 20 }}>🔖</span> Saved Videos
-              </Link>
-            </div>
-          </div>
-
-          <div className="divider" style={{ height: 1, background: 'var(--border-card)' }} />
-
-          {/* Upcoming Events */}
+{/* Upcoming Events */}
           <div>
             <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>Upcoming Events</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -178,6 +163,22 @@ function Dashboard() {
               </div>
             </div>
           </div>
+
+          <div className="divider" style={{ height: 1, background: 'var(--border-card)', margin: '12px 0' }} />
+
+          {/* My Shortcuts */}
+          <div>
+            <h4 className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>My Shortcuts</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Link href="/courses" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                <span style={{ fontSize: 20 }}>📚</span> Recent Courses
+              </Link>
+              <Link href="/player" className="shortcut-item" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>
+                <span style={{ fontSize: 20 }}>🔖</span> Saved Videos
+              </Link>
+            </div>
+          </div>
+
         </div>
 
         <div className="main-column">

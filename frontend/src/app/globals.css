@@ -188,9 +188,10 @@ a {
 
 .three-column-grid {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 280px;
+  grid-template-columns: 280px minmax(0, 1fr) 280px;
   gap: 20px;
   align-items: start;
+  justify-content: center;
 }
 
 @media (max-width: 1024px) {
