@@ -46,12 +46,16 @@ function PlayerContent() {
         setSiblingVideos(sorted);
         setCurrentIdx(sorted.findIndex((sv: any) => sv.id === id));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.status === 404) {
+        setVideoId(0);
+        localStorage.removeItem('current_video_id');
+      }
     } finally {
       setLoading(false);
     }
-  }, [token, video, setVideo]);
+  }, [token, video, setVideo, setVideoId]);
 
   useEffect(() => { if (videoId) loadVideo(videoId); }, [videoId, loadVideo]);
 

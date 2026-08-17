@@ -40,8 +40,14 @@ export default function GlobalPlayer() {
       setVideo(null);
       return;
     }
-    coursesApi.getVideo(token, videoId).then(setVideo).catch(console.error);
-  }, [videoId, token]);
+    coursesApi.getVideo(token, videoId).then(setVideo).catch((err: any) => {
+      console.error(err);
+      if (err.status === 404) {
+        setVideoId(0);
+        localStorage.removeItem('current_video_id');
+      }
+    });
+  }, [videoId, token, setVideoId]);
 
   if (!video) return null;
   if (!mounted) return null;
