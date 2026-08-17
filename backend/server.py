@@ -31,7 +31,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import FASTAPI_PORT, DEFAULT_SEGMENT_ICONS
+from config import FASTAPI_PORT, DEFAULT_SEGMENT_ICONS, DB_PATH
+import sqlite3
 from backend.auth import (
     hash_password,
     verify_password,
@@ -656,12 +657,6 @@ async def current_user_info(user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════════════════
 #  Admin endpoints
 # ═══════════════════════════════════════════════════════════
-
-# -- Public users list --
-@app.get("/api/users")
-async def list_users(user: dict = Depends(get_current_user)):
-    data = get_all_users()
-    return {"users": data}
 
 # -- Users admin --
 @app.get("/api/admin/users")
