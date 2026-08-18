@@ -31,37 +31,30 @@ function PlayerContent() {
   const [siblingVideos, setSiblingVideos] = useState<any[]>([]);
   const [currentIdx, setCurrentIdx] = useState(-1);
 
-  const loadVideo = useCallback(async (id: number) => {
-    if (!token || !id) return;
-    if (!video || video.id !== id) setLoading(true);
-    try {
-      const v = await coursesApi.getVideo(token, id);
-      setVideo(v);
-      setIsComplete(v.progress?.completed || false);
+  useEffect(() => {
+    if (!videoId) return;
+    
+    if (video && video.id === videoId) {
+      setLoading(false);
+      setIsComplete(video.progress?.completed || false);
 
       // Load siblings for nav
-      if (v.segment_id) {
-        const segRes = await coursesApi.getSegmentVideos(token, v.segment_id);
-        const sorted = segRes.videos.sort((a: any, b: any) => naturalCompare(a.title, b.title));
-        setSiblingVideos(sorted);
-        setCurrentIdx(sorted.findIndex((sv: any) => sv.id === id));
+      if (video.segment_id && token) {
+        coursesApi.getSegmentVideos(token, video.segment_id)
+          .then(segRes => {
+            const sorted = segRes.videos.sort((a: any, b: any) => naturalCompare(a.title, b.title));
+            setSiblingVideos(sorted);
+            setCurrentIdx(sorted.findIndex((sv: any) => sv.id === video.id));
+          })
+          .catch(console.error);
       }
-    } catch (err: any) {
-      console.error(err);
-      if (err.status === 404) {
-        setVideoId(0);
-        localStorage.removeItem('current_video_id');
-      }
-    } finally {
-      setLoading(false);
+    } else {
+      setLoading(true);
     }
-  }, [token, video, setVideo, setVideoId]);
-
-  useEffect(() => { if (videoId) loadVideo(videoId); }, [videoId, loadVideo]);
+  }, [video, videoId, token]);
 
   const navigateTo = (id: number) => {
     setVideoId(id);
-    loadVideo(id);
   };
 
   const handleMarkComplete = async () => {
