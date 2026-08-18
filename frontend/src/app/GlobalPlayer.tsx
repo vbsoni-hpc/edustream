@@ -107,6 +107,7 @@ export default function GlobalPlayer() {
          {isYoutube ? (
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe
+                key={video.id}
                 src={`https://www.youtube.com/embed/${video.youtube_id}?start=${Math.floor(lastPosition)}`}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -117,6 +118,7 @@ export default function GlobalPlayer() {
             <div style={{ padding: 16, color: 'red', fontSize: 12 }}>Broken YT Video</div>
          ) : (
             <TelegramPlayer 
+              key={video.id}
               videoMsgId={video.telegram_msg_id} 
               videoId={video.id} 
               token={token} 
