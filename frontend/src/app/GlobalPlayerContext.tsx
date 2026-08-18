@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 
 type GlobalPlayerContextType = {
@@ -44,7 +44,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     }
   }, [pathname, videoId]);
 
-  const setVideoId = (id: number) => {
+  const setVideoId = useCallback((id: number) => {
     setVideoIdState(id);
     if (typeof window !== 'undefined') {
       localStorage.setItem('current_video_id', String(id));
@@ -52,7 +52,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     if (pathname !== '/player') {
       setIsPiP(true);
     }
-  };
+  }, [pathname]);
 
   return (
     <GlobalPlayerContext.Provider value={{ videoId, setVideoId, isPiP, setIsPiP, mountNode, setMountNode, video, setVideo }}>

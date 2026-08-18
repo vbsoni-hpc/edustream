@@ -20,11 +20,9 @@ export default function PlayerPage() {
 }
 
 function PlayerContent() {
-  const { videoId: globalVideoId, setVideoId, setIsPiP, setMountNode, video, setVideo } = useGlobalPlayer();
+  const { videoId, setVideoId, setIsPiP, setMountNode, video, setVideo } = useGlobalPlayer();
 
   const { token, user } = useAuth();
-
-  const videoId = typeof window !== 'undefined' ? parseInt(localStorage.getItem('current_video_id') || '0') : 0;
 
   const [loading, setLoading] = useState(!video || video.id !== videoId);
   const [isComplete, setIsComplete] = useState(video?.progress?.completed || false);
