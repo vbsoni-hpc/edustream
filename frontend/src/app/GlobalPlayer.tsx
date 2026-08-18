@@ -195,6 +195,7 @@ function TelegramPlayer({ videoMsgId, videoId, token, apiBase, lastPosition }: a
     <video
       ref={videoRef}
       controls
+      autoPlay
       controlsList="nodownload"
       playsInline
       style={{ width: '100%', display: 'block', maxHeight: '70vh' }}

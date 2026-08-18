@@ -61,25 +61,14 @@ function PlayerContent() {
     setIsComplete(true);
   };
 
-  if (loading) {
-    return <div className="loading-screen"><div className="spinner" /><span>Loading player...</span></div>;
-  }
-
-  if (!video) {
-    return (
-      <div className="empty-state" style={{ marginTop: 60 }}>
-        <div className="empty-state-icon">🎬</div>
-        <p className="empty-state-text">
-          No video selected. Go to <a href="/courses" style={{ color: 'var(--primary-light)' }}>My Courses</a> and pick a video to watch.
-        </p>
-      </div>
-    );
-  }
+  // We should NOT return early and unmount the player mount point,
+  // because that causes the GlobalPlayer to portal to document.body and break.
+  // Instead, render the layout, and if loading or no video, show an overlay or empty state inside it.
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-  const lastPosition = video.progress?.last_position || 0;
-  const isYoutube = !!video.youtube_id;
-  const isBrokenYoutube = video.mime_type === 'video/youtube' && !video.youtube_id;
+  const lastPosition = video?.progress?.last_position || 0;
+  const isYoutube = !!video?.youtube_id;
+  const isBrokenYoutube = video?.mime_type === 'video/youtube' && !video?.youtube_id;
 
   const prevVideo = currentIdx > 0 ? siblingVideos[currentIdx - 1] : null;
   const nextVideo = currentIdx >= 0 && currentIdx < siblingVideos.length - 1 ? siblingVideos[currentIdx + 1] : null;
@@ -89,56 +78,79 @@ function PlayerContent() {
       {/* Breadcrumb */}
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
         <span style={{ color: 'var(--primary-light)', fontWeight: 600 }}>
-          {video.segment_icon || '📁'} {video.segment_name || 'Uncategorized'}
+          {video?.segment_icon || '📁'} {video?.segment_name || 'Uncategorized'}
         </span>
       </div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>{video.title}</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>
+        {video ? video.title : 'Loading...'}
+      </h1>
 
       {isComplete && (
         <div className="form-success" style={{ marginBottom: 16 }}>✅ You&#39;ve completed this video!</div>
       )}
 
-      {/* Video Player Mount Point */}
+      {/* Video Player Mount Point MUST stay in DOM */}
       <div
         id="player-mount"
         ref={setMountNode}
-        style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16 }}
-      ></div>
-      {/* Watching Now */}
-      <WatchingNow videoId={video.id} token={token!} />
-
-      {/* AI Chat */}
-      <AIChatSection videoId={video.id} videoTitle={video.title} />
-
-      {/* Mark Complete */}
-      <div style={{ marginTop: 24 }}>
-        {!isComplete ? (
-          <button className="btn btn-primary" onClick={handleMarkComplete}>
-            ✅ Mark as Complete
-          </button>
-        ) : (
-          <span style={{ fontSize: 15, fontWeight: 600 }}>✅ Completed</span>
+        style={{ minHeight: '40vh', marginBottom: 24, borderRadius: 16, position: 'relative' }}
+      >
+        {loading && (
+          <div className="loading-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.5)', zIndex: 10 }}>
+            <div className="spinner" />
+          </div>
+        )}
+        {(!video && !loading) && (
+          <div className="empty-state" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <div className="empty-state-icon">🎬</div>
+            <p className="empty-state-text">
+              No video selected. Go to <a href="/courses" style={{ color: 'var(--primary-light)' }}>My Courses</a>.
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Prev / Next Nav */}
-      <div className="grid-2 mt-8">
-        {prevVideo ? (
-          <div className="glass-card" onClick={() => navigateTo(prevVideo.id)} style={{ cursor: 'pointer' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>← Previous</div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{prevVideo.title}</div>
+      {video && !loading && (
+        <>
+          {/* Watching Now */}
+          <WatchingNow videoId={video.id} token={token!} />
+
+          {/* AI Chat */}
+          <AIChatSection videoId={video.id} videoTitle={video.title} />
+
+          {/* Mark Complete */}
+          <div style={{ marginTop: 24 }}>
+            {!isComplete ? (
+              <button className="btn btn-primary" onClick={handleMarkComplete}>
+                ✅ Mark as Complete
+              </button>
+            ) : (
+              <span style={{ fontSize: 15, fontWeight: 600 }}>✅ Completed</span>
+            )}
           </div>
-        ) : <div />}
-        {nextVideo ? (
-          <div className="glass-card" onClick={() => navigateTo(nextVideo.id)} style={{ cursor: 'pointer' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Next →</div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{nextVideo.title}</div>
+
+          {/* Prev / Next Nav */}
+          <div className="grid-2 mt-8">
+            {prevVideo ? (
+              <div className="glass-card" onClick={() => navigateTo(prevVideo.id)} style={{ cursor: 'pointer' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>← Previous</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{prevVideo.title}</div>
+              </div>
+            ) : <div />}
+            {nextVideo ? (
+              <div className="glass-card" onClick={() => navigateTo(nextVideo.id)} style={{ cursor: 'pointer' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Next →</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{nextVideo.title}</div>
+              </div>
+            ) : <div />}
           </div>
-        ) : <div />}
-      </div>
+        </>
+      )}
     </div>
   );
 }
+
+
 
 /* ── AI Chat Section ────────────────────────────────────── */
 function AIChatSection({ videoId, videoTitle }: { videoId: number; videoTitle: string }) {
