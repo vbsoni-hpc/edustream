@@ -101,11 +101,11 @@ export default function GlobalPlayer() {
          position: isCollapsed ? 'absolute' : 'relative',
          left: isCollapsed ? -9999 : 'auto',
          width: isCollapsed ? 350 : '100%',
-         height: !isPiP ? '100%' : 'auto',
+         height: 'auto',
          opacity: isCollapsed ? 0 : 1
        }}>
          {isYoutube ? (
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: !isPiP ? '100%' : 0 }}>
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
               <iframe
                 src={`https://www.youtube.com/embed/${video.youtube_id}?start=${Math.floor(lastPosition)}`}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}

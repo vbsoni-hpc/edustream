@@ -35,19 +35,21 @@ def process_youtube_playlist(url: str, icon: str = "▶️", description: str = 
             uploaded_by=user_id
         )
         
-        entries = info.get('entries', [])
+        entries = info.get('entries')
         
-        # If it's a single video and not a playlist, `entries` might be empty but `id` exists
-        if not entries and info.get('id'):
+        # If it's a single video and not a playlist, `entries` might be None but `id` exists
+        if entries is None and info.get('id'):
             entries = [info]
+        elif entries is None:
+            entries = []
 
         for entry in entries:
             if not entry:
                 continue
             
             video_id = entry.get('id')
-            video_title = entry.get('title', 'Unknown Video')
-            duration = entry.get('duration', 0)
+            video_title = entry.get('title') or 'Unknown Video'
+            duration = entry.get('duration') or 0
             
             if video_id:
                 upsert_youtube_video(
