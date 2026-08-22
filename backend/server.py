@@ -1248,7 +1248,7 @@ class AIChatRequest(BaseModel):
 @app.post("/api/ai/chat")
 async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
     try:
-        import aiohttp
+        import g4f
         
         system_msg = {
             "role": "system",
@@ -1256,25 +1256,14 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         }
         messages = [system_msg] + req.messages[-5:]
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://text.pollinations.ai/openai",
-                json={
-                    "model": "openai",
-                    "messages": messages,
-                    "seed": 42
-                },
-                timeout=30.0
-            ) as resp:
-                if resp.status != 200:
-                    text = await resp.text()
-                    raise Exception(f"API Error {resp.status}: {text}")
-                    
-                data = await resp.json()
-                answer = data["choices"][0]["message"]["content"]
-            
-        return {"response": answer}
+        response = await g4f.ChatCompletion.create_async(
+            model="gpt-4o",
+            messages=messages,
+        )
+        
+        return {"response": response}
     except Exception as e:
+        logger.error(f"AI chat failed: {e}")
         raise HTTPException(500, f"AI chat failed: {str(e)}")
 
 
