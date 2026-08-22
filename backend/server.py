@@ -1248,7 +1248,8 @@ class AIChatRequest(BaseModel):
 @app.post("/api/ai/chat")
 async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
     try:
-        from g4f.client import AsyncClient
+        import httpx
+        import json
         
         system_msg = {
             "role": "system",
@@ -1256,13 +1257,23 @@ async def ai_chat(req: AIChatRequest, user: dict = Depends(get_current_user)):
         }
         messages = [system_msg] + req.messages[-5:]
         
-        client = AsyncClient()
-        response = await client.chat.completions.create(
-            model="", # empty string uses best available default model
-            messages=messages,
-        )
-        
-        answer = response.choices[0].message.content
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://text.pollinations.ai/openai",
+                json={
+                    "messages": messages,
+                    "model": "openai" # Pollinations default model
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0"
+                },
+                timeout=30.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+        answer = data["choices"][0]["message"]["content"]
         return {"response": answer}
     except Exception as e:
         logger.error(f"AI chat failed: {e}")
